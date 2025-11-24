@@ -5,7 +5,7 @@ pnpm-lock.yaml
 package.zip
 node_modules
 dev
-dist
+/dist/
 build
 tmp
 .env
