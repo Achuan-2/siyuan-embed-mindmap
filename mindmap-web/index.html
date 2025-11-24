@@ -115,7 +115,31 @@
             return hasText || hasChildren;
         }
         
-        const setTakeOverAppMethods = data => {
+                // 检测用户是否正在输入（用于在输入时跳过自动保存，避免中断输入）
+                function isUserTyping() {
+                    try {
+                        const active = document.activeElement;
+                        if (!active) return false;
+                        const tag = (active.tagName || '').toLowerCase();
+                        if (tag === 'input' || tag === 'textarea') return true;
+                        if (active.isContentEditable) return true;
+                        // 检查是否有聚焦的 contenteditable 元素
+                        if (document.querySelector('[contenteditable="true"]:focus')) return true;
+                        // 如果 mindMapInstance 提供编辑状态检测方法，则优先使用（兼容性检测）
+                        if (window.mindMapInstance && typeof window.mindMapInstance.isEditing === 'function') {
+                            try {
+                                if (window.mindMapInstance.isEditing()) return true;
+                            } catch (e) {
+                                // ignore
+                            }
+                        }
+                        return false;
+                    } catch (e) {
+                        return false;
+                    }
+                }
+
+                const setTakeOverAppMethods = data => {
             window.takeOverAppMethods = {};
             
             // 获取思维导图数据的函数
@@ -124,7 +148,12 @@
             };
             
             // 保存思维导图数据的函数（带防抖）
+            // 在防抖保存前检测是否正在输入，若是则跳过保存以避免打字中断
             const saveMindMapDataDebounced = debounce((mindMapData) => {
+                if (isUserTyping()) {
+                    console.warn('Skipped saving because user is typing');
+                    return;
+                }
                 if (!isValidMindMapData(mindMapData)) {
                     console.warn('Skipped saving invalid or empty mindMapData');
                     return;
@@ -136,6 +165,10 @@
             }, 500);
             
             window.takeOverAppMethods.saveMindMapData = mindMapData => {
+                if (isUserTyping()) {
+                    console.warn('takeOverAppMethods.saveMindMapData: skipped because user is typing');
+                    return;
+                }
                 if (!isValidMindMapData(mindMapData)) {
                     console.warn('takeOverAppMethods.saveMindMapData: skipped invalid or empty data');
                     return;
