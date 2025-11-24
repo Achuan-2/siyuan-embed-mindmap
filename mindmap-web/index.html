@@ -102,6 +102,18 @@
                 timeout = setTimeout(later, wait);
             };
         }
+
+        // 校验思维导图数据是否有效（避免在数据为空或无意义时保存）
+        function isValidMindMapData(mindMapData) {
+            if (!mindMapData) return false;
+            const root = mindMapData.root;
+            if (!root) return false;
+
+            // 如果根节点有非空文本或存在子节点，则认为有效
+            const hasText = root.data && typeof root.data.text === 'string' && root.data.text.trim() !== '';
+            const hasChildren = Array.isArray(root.children) && root.children.length > 0;
+            return hasText || hasChildren;
+        }
         
         const setTakeOverAppMethods = data => {
             window.takeOverAppMethods = {};
@@ -113,6 +125,10 @@
             
             // 保存思维导图数据的函数（带防抖）
             const saveMindMapDataDebounced = debounce((mindMapData) => {
+                if (!isValidMindMapData(mindMapData)) {
+                    console.warn('Skipped saving invalid or empty mindMapData');
+                    return;
+                }
                 window.parent.postMessage(JSON.stringify({
                     event: 'save',
                     data: mindMapData
@@ -120,6 +136,10 @@
             }, 500);
             
             window.takeOverAppMethods.saveMindMapData = mindMapData => {
+                if (!isValidMindMapData(mindMapData)) {
+                    console.warn('takeOverAppMethods.saveMindMapData: skipped invalid or empty data');
+                    return;
+                }
                 saveMindMapDataDebounced(mindMapData);
             };
             
@@ -177,6 +197,10 @@
                 if (window.mindMapInstance) {
                     try {
                         const mindMapData = window.mindMapInstance.getData(true);
+                        if (!isValidMindMapData(mindMapData)) {
+                            console.warn('Manual save skipped: invalid or empty mindMapData');
+                            return;
+                        }
                         window.parent.postMessage(JSON.stringify({
                             event: 'save',
                             data: mindMapData
@@ -192,6 +216,10 @@
                 if (window.mindMapInstance) {
                     try {
                         const mindMapData = window.mindMapInstance.getData(true);
+                        if (!isValidMindMapData(mindMapData)) {
+                            console.warn('Auto save skipped: invalid or empty mindMapData');
+                            return;
+                        }
                         window.parent.postMessage(JSON.stringify({
                             event: 'save',
                             data: mindMapData
