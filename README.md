@@ -5,3 +5,11 @@ SiYuan Note Embed Mindmap Plugin
 
 
 <img width="1336" height="1332" alt="image" src="https://github.com/user-attachments/assets/e9be0801-bc66-482c-bcee-3aa4b0505606" />
+
+
+如何打包
+
+```json
+cd mind-map/web && npm run build
+cd ../.. && npm run build
+```
