@@ -367,11 +367,19 @@ export default class MindmapPlugin extends Plugin {
       });
       // 初始化空思维导图到块属性
       const initial = {
-        root: { data: { text: "根节点" }, children: [] },
-        theme: null,
-        layout: null,
+        root: {
+          data: {
+            text: '根节点'
+          },
+          children: []
+        },
+        theme: {
+          template: 'avocado',
+          config: {}
+        },
+        layout: 'logicalStructure',
         config: {},
-        view: {}
+        view: null
       };
       try {
         fetchPost('/api/attr/setBlockAttrs', { id: blockID, attrs: { 'custom-mindmap': JSON.stringify(initial) } }, () => { });
