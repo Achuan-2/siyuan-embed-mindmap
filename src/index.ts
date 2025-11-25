@@ -2,7 +2,7 @@ import {
   Dialog,
   Plugin,
   getFrontend,
-  fetchPost,
+  fetchSyncPost,
   IWebSocketData,
   getAllEditor,
   openTab,
@@ -408,7 +408,7 @@ export default class MindmapPlugin extends Plugin {
 
 
 
-  public newMindmapImage(blockID: string, callback?: (imageInfo: MindmapImageInfo) => void) {
+  public async newMindmapImage(blockID: string, callback?: (imageInfo: MindmapImageInfo) => void) {
     const format = this.data[STORAGE_NAME].embedImageFormat;
     const imageName = `mindmap-image-${window.Lute.NewNodeID()}.${format}`;
     const placeholderImageContent = this.getPlaceholderImageContent(format);
@@ -418,13 +418,13 @@ export default class MindmapPlugin extends Plugin {
     formData.append('path', `data/assets/${imageName}`);
     formData.append('file', file);
     formData.append('isDir', 'false');
-    fetchPost('/api/file/putFile', formData, () => {
-      const imageURL = `assets/${imageName}`;
-      fetchPost('/api/block/updateBlock', {
-        id: blockID,
-        data: `![](${imageURL})`,
-        dataType: "markdown",
-      });
+    await fetchSyncPost('/api/file/putFile', formData);
+    const imageURL = `assets/${imageName}`;
+    await fetchSyncPost('/api/block/updateBlock', {
+      id: blockID,
+      data: `![](${imageURL})`,
+      dataType: "markdown",
+    });
       // 初始化空思维导图到块属性
       const initial = {
         root: {
@@ -451,7 +451,7 @@ export default class MindmapPlugin extends Plugin {
         view: null
       };
       try {
-        fetchPost('/api/attr/setBlockAttrs', { id: blockID, attrs: { 'custom-mindmap': JSON.stringify(initial) } }, () => { });
+        await fetchSyncPost('/api/attr/setBlockAttrs', { id: blockID, attrs: { 'custom-mindmap': JSON.stringify(initial) } });
       } catch (err) { }
 
       const imageInfo: MindmapImageInfo = {
@@ -459,10 +459,9 @@ export default class MindmapPlugin extends Plugin {
         data: placeholderImageContent,
         format: format,
       };
-      if (callback) {
-        callback(imageInfo);
-      }
-    });
+    if (callback) {
+      callback(imageInfo);
+    }
   }
 
   public async getMindmapImage(imageURL: string, reload: boolean): Promise<string> {
@@ -472,7 +471,7 @@ export default class MindmapPlugin extends Plugin {
     return await blobToDataURL(blob);
   }
 
-  public updateMindmapImage(imageInfo: MindmapImageInfo, callback?: (response: IWebSocketData) => void) {
+  public async updateMindmapImage(imageInfo: MindmapImageInfo, callback?: (response: IWebSocketData) => void) {
     if (!imageInfo.data) {
       imageInfo.data = this.getPlaceholderImageContent(imageInfo.format);
     }
@@ -482,7 +481,8 @@ export default class MindmapPlugin extends Plugin {
     formData.append("path", 'data/' + imageInfo.imageURL);
     formData.append("file", file);
     formData.append("isDir", "false");
-    fetchPost("/api/file/putFile", formData, callback);
+    const resp = await fetchSyncPost("/api/file/putFile", formData);
+    if (callback) callback(resp);
   }
 
   public updateAttrLabel(imageInfo: MindmapImageInfo, blockElement: HTMLElement) {
@@ -611,21 +611,20 @@ export default class MindmapPlugin extends Plugin {
         const onInit = async (_message: any) => {
           // Load mind map data from block attributes
           if (imageInfo.blockID) {
-            try {
-              fetchPost('/api/attr/getBlockAttrs', { id: imageInfo.blockID }, (resp) => {
-                let mindMapData = null;
-                if (resp && resp.data && resp.data['custom-mindmap']) {
-                  try {
-                    mindMapData = JSON.parse(resp.data['custom-mindmap']);
-                  } catch (e) { mindMapData = null; }
-                }
-                postMessage({
-                  event: 'init_data',
-                  mindMapData: mindMapData,
-                  mindMapConfig: {},
-                  lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-                  localConfig: null
-                });
+              try {
+              const resp = await fetchSyncPost('/api/attr/getBlockAttrs', { id: imageInfo.blockID });
+              let mindMapData = null;
+              if (resp && resp.data && resp.data['custom-mindmap']) {
+                try {
+                  mindMapData = JSON.parse(resp.data['custom-mindmap']);
+                } catch (e) { mindMapData = null; }
+              }
+              postMessage({
+                event: 'init_data',
+                mindMapData: mindMapData,
+                mindMapConfig: {},
+                lang: window.siyuan.config.lang.split('_')[0] || 'zh',
+                localConfig: null
               });
             } catch (err) {
               postMessage({
@@ -663,7 +662,7 @@ export default class MindmapPlugin extends Plugin {
           });
         };
 
-        const onSave = (message: any) => {
+        const onSave = async (message: any) => {
           // Save mind map data to block attributes
           try {
             const payload = message.data || null;
@@ -671,21 +670,24 @@ export default class MindmapPlugin extends Plugin {
               // Disable tab switching during save to prevent SVG dimension errors
               disableTabSwitching();
               
-              fetchPost('/api/attr/setBlockAttrs', { 
-                id: imageInfo.blockID, 
-                attrs: { 'custom-mindmap': typeof payload === 'string' ? payload : JSON.stringify(payload) } 
-              }, (_resp) => {
+              try {
+                await fetchSyncPost('/api/attr/setBlockAttrs', { 
+                  id: imageInfo.blockID, 
+                  attrs: { 'custom-mindmap': typeof payload === 'string' ? payload : JSON.stringify(payload) } 
+                });
                 // After saving data, export image
                 postMessage({ action: 'export_image', type: imageInfo.format });
                 // Push a notification to inform user that save succeeded only when it's a manual save (Ctrl+S)
                 try {
                   if (message && message.via === 'manual') {
-                    fetchPost('/api/notification/pushMsg', { msg: '保存成功', timeout: 7000 }, () => {});
+                    await fetchSyncPost('/api/notification/pushMsg', { msg: '保存成功', timeout: 7000 });
                   }
                 } catch (e) {
                   console.error('Push notification error:', e);
                 }
-              });
+              } catch (err) {
+                console.error('SetBlockAttrs error:', err);
+              }
             }
           } catch (err) {
             console.error('Save error:', err);
@@ -694,34 +696,28 @@ export default class MindmapPlugin extends Plugin {
           }
         }
 
-        const onExportSuccess = (message: any) => {
+        const onExportSuccess = async (message: any) => {
           // Update image with exported data
-          if (message.data) {
-            imageInfo.data = message.data;
-            imageInfo.data = that.fixImageContent(imageInfo.data);
-
-            that.updateMindmapImage(imageInfo, () => {
-              fetch(imageInfo.imageURL, { cache: 'reload' }).then(() => {
-                document.querySelectorAll(`img[data-src='${imageInfo.imageURL}']`).forEach(imageElement => {
-                  (imageElement as HTMLImageElement).src = imageInfo.imageURL;
-                  const blockElement = imageElement.closest("div[data-type='NodeParagraph']") as HTMLElement;
-                  if (blockElement) {
-                    that.updateAttrLabel(imageInfo, blockElement);
-                  }
-                });
-                // Re-enable tab switching after save is complete (with 300ms delay)
-                setTimeout(() => {
-                  enableTabSwitching();
-                }, 300);
-              }).catch((err) => {
-                console.error('Failed to reload image:', err);
-                // Re-enable tab switching even if reload fails
-                enableTabSwitching();
-              });
-            });
-          } else {
-            // Re-enable tab switching if no data
+          if (!message.data) {
             enableTabSwitching();
+            return;
+          }
+          imageInfo.data = message.data;
+          imageInfo.data = that.fixImageContent(imageInfo.data);
+          try {
+            await that.updateMindmapImage(imageInfo);
+            await fetch(imageInfo.imageURL, { cache: 'reload' });
+            document.querySelectorAll(`img[data-src='${imageInfo.imageURL}']`).forEach(imageElement => {
+              (imageElement as HTMLImageElement).src = imageInfo.imageURL;
+              const blockElement = imageElement.closest("div[data-type='NodeParagraph']") as HTMLElement;
+              if (blockElement) {
+                that.updateAttrLabel(imageInfo, blockElement);
+              }
+            });
+          } catch (err) {
+            console.error('Failed to reload image:', err);
+          } finally {
+            setTimeout(() => enableTabSwitching(), 300);
           }
         }
 
@@ -825,20 +821,19 @@ export default class MindmapPlugin extends Plugin {
       // Load mind map data from block attributes
       if (imageInfo.blockID) {
         try {
-          fetchPost('/api/attr/getBlockAttrs', { id: imageInfo.blockID }, (resp) => {
-            let mindMapData = null;
-            if (resp && resp.data && resp.data['custom-mindmap']) {
-              try {
-                mindMapData = JSON.parse(resp.data['custom-mindmap']);
-              } catch (e) { mindMapData = null; }
-            }
-            postMessage({
-              event: 'init_data',
-              mindMapData: mindMapData,
-              mindMapConfig: {},
-              lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-              localConfig: null
-            });
+          const resp = await fetchSyncPost('/api/attr/getBlockAttrs', { id: imageInfo.blockID });
+          let mindMapData = null;
+          if (resp && resp.data && resp.data['custom-mindmap']) {
+            try {
+              mindMapData = JSON.parse(resp.data['custom-mindmap']);
+            } catch (e) { mindMapData = null; }
+          }
+          postMessage({
+            event: 'init_data',
+            mindMapData: mindMapData,
+            mindMapConfig: {},
+            lang: window.siyuan.config.lang.split('_')[0] || 'zh',
+            localConfig: null
           });
         } catch (err) {
           postMessage({
@@ -878,7 +873,7 @@ export default class MindmapPlugin extends Plugin {
       });
     };
 
-    const onSave = (message: any) => {
+    const onSave = async (message: any) => {
       // Save mind map data to block attributes
       try {
         const payload = message.data || null;
@@ -886,21 +881,24 @@ export default class MindmapPlugin extends Plugin {
           // Disable tab switching during save to prevent SVG dimension errors
           disableTabSwitching();
           
-          fetchPost('/api/attr/setBlockAttrs', { 
-            id: imageInfo.blockID, 
-            attrs: { 'custom-mindmap': typeof payload === 'string' ? payload : JSON.stringify(payload) } 
-          }, (_resp) => {
+          try {
+            await fetchSyncPost('/api/attr/setBlockAttrs', { 
+              id: imageInfo.blockID, 
+              attrs: { 'custom-mindmap': typeof payload === 'string' ? payload : JSON.stringify(payload) } 
+            });
             // After saving data, export image
             postMessage({ action: 'export_image', type: imageInfo.format });
             // Push a notification to inform user that save succeeded only when it's a manual save (Ctrl+S)
             try {
               if (message && message.via === 'manual') {
-                fetchPost('/api/notification/pushMsg', { msg: '保存成功', timeout: 7000 }, () => {});
+                await fetchSyncPost('/api/notification/pushMsg', { msg: '保存成功', timeout: 7000 });
               }
             } catch (e) {
               console.error('Push notification error:', e);
             }
-          });
+          } catch (err) {
+            console.error('SetBlockAttrs error:', err);
+          }
         }
       } catch (err) {
         console.error('Save error:', err);
@@ -909,34 +907,28 @@ export default class MindmapPlugin extends Plugin {
       }
     }
 
-    const onExportSuccess = (message: any) => {
+    const onExportSuccess = async (message: any) => {
       // Update image with exported data
-      if (message.data) {
-        imageInfo.data = message.data;
-        imageInfo.data = this.fixImageContent(imageInfo.data);
-
-        this.updateMindmapImage(imageInfo, () => {
-          fetch(imageInfo.imageURL, { cache: 'reload' }).then(() => {
-            document.querySelectorAll(`img[data-src='${imageInfo.imageURL}']`).forEach(imageElement => {
-              (imageElement as HTMLImageElement).src = imageInfo.imageURL;
-              const blockElement = imageElement.closest("div[data-type='NodeParagraph']") as HTMLElement;
-              if (blockElement) {
-                this.updateAttrLabel(imageInfo, blockElement);
-              }
-            });
-            // Re-enable tab switching after save is complete (with 300ms delay)
-            setTimeout(() => {
-              enableTabSwitching();
-            }, 300);
-          }).catch((err) => {
-            console.error('Failed to reload image:', err);
-            // Re-enable tab switching even if reload fails
-            enableTabSwitching();
-          });
-        });
-      } else {
-        // Re-enable tab switching if no data
+      if (!message.data) {
         enableTabSwitching();
+        return;
+      }
+      imageInfo.data = message.data;
+      imageInfo.data = this.fixImageContent(imageInfo.data);
+      try {
+        await this.updateMindmapImage(imageInfo);
+        await fetch(imageInfo.imageURL, { cache: 'reload' });
+        document.querySelectorAll(`img[data-src='${imageInfo.imageURL}']`).forEach(imageElement => {
+          (imageElement as HTMLImageElement).src = imageInfo.imageURL;
+          const blockElement = imageElement.closest("div[data-type='NodeParagraph']") as HTMLElement;
+          if (blockElement) {
+            this.updateAttrLabel(imageInfo, blockElement);
+          }
+        });
+      } catch (err) {
+        console.error('Failed to reload image:', err);
+      } finally {
+        setTimeout(() => enableTabSwitching(), 300);
       }
     }
 
