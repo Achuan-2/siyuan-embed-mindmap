@@ -348,17 +348,7 @@
                         if (window.mindMapInstance) {
                             try {
                                 const type = message.type || 'png';
-                                const exportData = await window.mindMapInstance.export(type, false, 'mindmap', false, `* {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-.smm-hover-node{
-  display:none !important;
-  }
-    .smm-expand-btn{
-    display:none !important;}
-        `);
+                                const exportData = await window.mindMapInstance.export(type, false, 'mindmap', false);
                                 window.parent.postMessage(JSON.stringify({
                                     event: 'export_success',
                                     data: exportData,

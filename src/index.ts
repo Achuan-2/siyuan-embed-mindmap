@@ -143,9 +143,9 @@ export default class MindmapPlugin extends Plugin {
     this.setupEditTab();
 
     this.protyleSlash = [{
-      filter: ["mindmap", "simple-mind-map", "simple-mindmap","思维导图"],
+      filter: ["mindmap", "simple-mind-map", "simple-mindmap","思维导图","脑图","naotu","siweidaotu"],
       id: "mindmap",
-      html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">MindMap</span></div>`,
+      html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">思维导图</span></div>`,
       callback: (protyle, nodeElement) => {
         this.newMindmapImage(protyle, nodeElement.dataset.nodeId, (imageInfo) => {
           if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
@@ -249,9 +249,7 @@ export default class MindmapPlugin extends Plugin {
     (dialog.element.querySelector(".b3-dialog__action [data-type='confirm']") as HTMLElement).addEventListener("click", () => {
       this.data[STORAGE_NAME].labelDisplay = (dialog.element.querySelector("[data-type='labelDisplay']") as HTMLSelectElement).value;
       this.data[STORAGE_NAME].embedImageFormat = (dialog.element.querySelector("[data-type='embedImageFormat']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].fullscreenEdit = (dialog.element.querySelector("[data-type='fullscreenEdit']") as HTMLInputElement).checked;
       this.data[STORAGE_NAME].editWindow = (dialog.element.querySelector("[data-type='editWindow']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].themeMode = (dialog.element.querySelector("[data-type='themeMode']") as HTMLSelectElement).value;
       this.saveData(STORAGE_NAME, this.data[STORAGE_NAME]);
       this.reloadAllEditor();
       this.removeAllMindmapTab();
@@ -264,9 +262,7 @@ export default class MindmapPlugin extends Plugin {
     if (!this.data[STORAGE_NAME]) this.data[STORAGE_NAME] = {};
     if (typeof this.data[STORAGE_NAME].labelDisplay === 'undefined') this.data[STORAGE_NAME].labelDisplay = "showLabelOnHover";
     if (typeof this.data[STORAGE_NAME].embedImageFormat === 'undefined') this.data[STORAGE_NAME].embedImageFormat = "svg";
-    if (typeof this.data[STORAGE_NAME].fullscreenEdit === 'undefined') this.data[STORAGE_NAME].fullscreenEdit = false;
     if (typeof this.data[STORAGE_NAME].editWindow === 'undefined') this.data[STORAGE_NAME].editWindow = 'dialog';
-    if (typeof this.data[STORAGE_NAME].themeMode === 'undefined') this.data[STORAGE_NAME].themeMode = "themeLight";
 
     this.settingItems = [
       {
@@ -296,16 +292,6 @@ export default class MindmapPlugin extends Plugin {
         },
       },
       {
-        title: this.i18n.fullscreenEdit,
-        direction: "column",
-        description: this.i18n.fullscreenEditDescription,
-        createActionElement: () => {
-          const element = HTMLToElement(`<input type="checkbox" class="b3-switch fn__flex-center" data-type="fullscreenEdit">`) as HTMLInputElement;
-          element.checked = this.data[STORAGE_NAME].fullscreenEdit;
-          return element;
-        },
-      },
-      {
         title: this.i18n.editWindow,
         direction: "column",
         description: this.i18n.editWindowDescription,
@@ -317,20 +303,7 @@ export default class MindmapPlugin extends Plugin {
           }).join("");
           return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="editWindow">${optionsHTML}</select>`);
         },
-      },
-      {
-        title: this.i18n.themeMode,
-        direction: "column",
-        description: this.i18n.themeModeDescription,
-        createActionElement: () => {
-          const options = ["themeLight", "themeDark", "themeOS"];
-          const optionsHTML = options.map(option => {
-            const isSelected = String(option) === String(this.data[STORAGE_NAME].themeMode);
-            return `<option value="${option}"${isSelected ? " selected" : ""}>${window.siyuan.languages[option]}</option>`;
-          }).join("");
-          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="themeMode">${optionsHTML}</select>`);
-        },
-      },
+      }
     ];
   }
 
@@ -521,7 +494,7 @@ export default class MindmapPlugin extends Plugin {
           window.siyuan.menus.menu.addItem({
             id: "edit-mindmap",
             icon: 'iconEdit',
-            label: `Edit Mind Map`,
+            label: `思维导图编辑`,
             index: 1,
             click: () => {
               if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
@@ -981,9 +954,6 @@ export default class MindmapPlugin extends Plugin {
     })
   }
 
-  public isDarkMode(): boolean {
-    return this.data[STORAGE_NAME].themeMode === 'themeDark' || (this.data[STORAGE_NAME].themeMode === 'themeOS' && window.siyuan.config.appearance.mode === 1);
-  }
 
   public fixImageContent(imageDataURL: string) {
     // 解决SVG CSS5的light-dark样式在部分浏览器上无效的问题

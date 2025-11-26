@@ -2,7 +2,7 @@
   "name": "siyuan-embed-mindmap",
   "author": "Achuan-2",
   "url": "https://github.com/Achuan-2/siyuan-embed-mindmap",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "minAppVersion": "3.0.0",
   "disabledInPublish": true,
   "backends": [
@@ -12,19 +12,19 @@
     "all"
   ],
   "displayName": {
-    "default": "「Embed Series」Mind Map",
-    "zh_CN": "「嵌入式系列」思维导图"
+    "default": "「Mind Map",
+    "zh_CN": "思维导图"
   },
   "description": {
-    "default": "「Embed Series」Create editable Mind Map with simple-mind-map",
-    "zh_CN": "「嵌入式系列」使用 simple-mind-map 创建可编辑的思维导图"
+    "default": "「Create editable Mind Map with simple-mind-map",
+    "zh_CN": "使用 simple-mind-map 创建可编辑的思维导图"
   },
   "readme": {
     "default": "README.md",
-    "zh_CN": "README_zh_CN.md"
+    "zh_CN": "README.md"
   },
   "funding": {
     "custom": []
   },
-  "keywords": ["mindmap", "思维导图"]
+  "keywords": []
 }
