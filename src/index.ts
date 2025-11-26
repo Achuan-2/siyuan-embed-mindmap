@@ -415,6 +415,9 @@ export default class MindmapPlugin extends Plugin {
         theme: {
           template: 'lemonBubbles',
           config: {
+            root: {
+              shape: "rectangle"
+            },
             second: {
               fontSize: 24,
               shape: "rectangle"
