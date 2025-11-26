@@ -434,6 +434,7 @@ export default class MindmapPlugin extends Plugin {
           config: {
             second: {
               fontSize: 24,
+              shape: "rectangle"
             },
             node: {
               fontSize: 24,
