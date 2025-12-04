@@ -58,6 +58,7 @@ export default class MindmapPlugin extends Plugin {
   private _mutationObserver;
   private _openMenuImageHandler;
   private _globalKeyDownHandler;
+  private _mouseoverHandler;
 
   private settingItems: SettingItem[];
   public EDIT_TAB_TYPE = "mindmap-edit-tab";
@@ -82,7 +83,7 @@ export default class MindmapPlugin extends Plugin {
 
     // Add edit button on hover for mindmap images
     let isProcessing = false;
-    document.addEventListener('mouseover', (e) => {
+    this._mouseoverHandler = (e) => {
       const imgContainer = (e.target as HTMLElement).closest('[data-type="img"]') as HTMLElement;
       if (!imgContainer || isProcessing) return;
 
@@ -138,7 +139,8 @@ export default class MindmapPlugin extends Plugin {
           });
         }
       });
-    });
+    };
+    document.addEventListener('mouseover', this._mouseoverHandler);
 
     this.setupEditTab();
 
@@ -170,6 +172,7 @@ export default class MindmapPlugin extends Plugin {
     if (this._mutationObserver) this._mutationObserver.disconnect();
     if (this._openMenuImageHandler) this.eventBus.off("open-menu-image", this._openMenuImageHandler);
     if (this._globalKeyDownHandler) document.documentElement.removeEventListener("keydown", this._globalKeyDownHandler);
+    if (this._mouseoverHandler) document.removeEventListener('mouseover', this._mouseoverHandler);
     this.reloadAllEditor();
     this.removeAllMindmapTab();
   }
