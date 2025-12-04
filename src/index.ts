@@ -632,21 +632,8 @@ export default class MindmapPlugin extends Plugin {
           }
         }
 
-        const disableTabSwitching = () => {
-          const tabHeaders = document.querySelectorAll('.layout-tab-bar li[data-type="tab-header"]');
-          tabHeaders.forEach((header: HTMLElement) => {
-            header.style.pointerEvents = 'none';
-            header.style.opacity = '0.6';
-          });
-        };
 
-        const enableTabSwitching = () => {
-          const tabHeaders = document.querySelectorAll('.layout-tab-bar li[data-type="tab-header"]');
-          tabHeaders.forEach((header: HTMLElement) => {
-            header.style.pointerEvents = '';
-            header.style.opacity = '';
-          });
-        };
+
 
         const onSave = async (message: any) => {
           // Save mind map data to block attributes
@@ -654,7 +641,6 @@ export default class MindmapPlugin extends Plugin {
             const payload = message.data || null;
             if (imageInfo.blockID && payload) {
               // Disable tab switching during save to prevent SVG dimension errors
-              disableTabSwitching();
               
               try {
                 await fetchSyncPost('/api/attr/setBlockAttrs', { 
@@ -678,14 +664,12 @@ export default class MindmapPlugin extends Plugin {
           } catch (err) {
             console.error('Save error:', err);
             // Re-enable tab switching even if save fails
-            enableTabSwitching();
           }
         }
 
         const onExportSuccess = async (message: any) => {
           // Update image with exported data
           if (!message.data) {
-            enableTabSwitching();
             return;
           }
           imageInfo.data = message.data;
@@ -703,7 +687,6 @@ export default class MindmapPlugin extends Plugin {
           } catch (err) {
             console.error('Failed to reload image:', err);
           } finally {
-            setTimeout(() => enableTabSwitching(), 300);
           }
         }
 
@@ -843,21 +826,7 @@ export default class MindmapPlugin extends Plugin {
 
 
 
-    const disableTabSwitching = () => {
-      const tabHeaders = document.querySelectorAll('.layout-tab-bar li[data-type="tab-header"]');
-      tabHeaders.forEach((header: HTMLElement) => {
-        header.style.pointerEvents = 'none';
-        header.style.opacity = '0.6';
-      });
-    };
 
-    const enableTabSwitching = () => {
-      const tabHeaders = document.querySelectorAll('.layout-tab-bar li[data-type="tab-header"]');
-      tabHeaders.forEach((header: HTMLElement) => {
-        header.style.pointerEvents = '';
-        header.style.opacity = '';
-      });
-    };
 
     const onSave = async (message: any) => {
       // Save mind map data to block attributes
@@ -865,7 +834,6 @@ export default class MindmapPlugin extends Plugin {
         const payload = message.data || null;
         if (imageInfo.blockID && payload) {
           // Disable tab switching during save to prevent SVG dimension errors
-          disableTabSwitching();
           
           try {
             await fetchSyncPost('/api/attr/setBlockAttrs', { 
@@ -889,14 +857,12 @@ export default class MindmapPlugin extends Plugin {
       } catch (err) {
         console.error('Save error:', err);
         // Re-enable tab switching even if save fails
-        enableTabSwitching();
       }
     }
 
     const onExportSuccess = async (message: any) => {
       // Update image with exported data
       if (!message.data) {
-        enableTabSwitching();
         return;
       }
       imageInfo.data = message.data;
@@ -914,7 +880,6 @@ export default class MindmapPlugin extends Plugin {
       } catch (err) {
         console.error('Failed to reload image:', err);
       } finally {
-        setTimeout(() => enableTabSwitching(), 300);
       }
     }
 
