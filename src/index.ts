@@ -250,6 +250,19 @@ export default class MindmapPlugin extends Plugin {
       this.data[STORAGE_NAME].labelDisplay = (dialog.element.querySelector("[data-type='labelDisplay']") as HTMLSelectElement).value;
       this.data[STORAGE_NAME].embedImageFormat = (dialog.element.querySelector("[data-type='embedImageFormat']") as HTMLSelectElement).value;
       this.data[STORAGE_NAME].editWindow = (dialog.element.querySelector("[data-type='editWindow']") as HTMLSelectElement).value;
+      this.data[STORAGE_NAME].defaultTheme = (dialog.element.querySelector("[data-type='defaultTheme']") as HTMLSelectElement).value;
+      
+      // 验证并保存主题配置
+      const themeConfigValue = (dialog.element.querySelector("[data-type='themeConfig']") as HTMLTextAreaElement).value;
+      try {
+        JSON.parse(themeConfigValue); // 验证JSON格式
+        this.data[STORAGE_NAME].themeConfig = themeConfigValue;
+      } catch (e) {
+        // JSON格式错误时使用默认配置
+        console.warn('Theme config JSON parse error, using default config');
+        this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
+      }
+      
       this.saveData(STORAGE_NAME, this.data[STORAGE_NAME]);
       this.reloadAllEditor();
       this.removeAllMindmapTab();
@@ -257,12 +270,88 @@ export default class MindmapPlugin extends Plugin {
     });
   }
 
+  // 可用的思维导图主题列表
+  private readonly THEME_LIST = [
+    { value: 'default', name: '默认主题' },
+    { value: 'skyGreen', name: '天清绿' },
+    { value: 'classicGreen', name: '经典绿' },
+    { value: 'classicBlue', name: '经典蓝' },
+    { value: 'blueSky', name: '天空蓝' },
+    { value: 'brainImpairedPink', name: '脑残粉' },
+    { value: 'earthYellow', name: '泥土黄' },
+    { value: 'freshGreen', name: '清新绿' },
+    { value: 'freshRed', name: '清新红' },
+    { value: 'romanticPurple', name: '浪漫紫' },
+    { value: 'pinkGrape', name: '粉红葡萄' },
+    { value: 'mint', name: '薄荷' },
+    { value: 'gold', name: '金色vip' },
+    { value: 'vitalityOrange', name: '活力橙' },
+    { value: 'greenLeaf', name: '绿叶' },
+    { value: 'minions', name: '小黄人' },
+    { value: 'simpleBlack', name: '简约黑' },
+    { value: 'courseGreen', name: '课程绿' },
+    { value: 'coffee', name: '咖啡' },
+    { value: 'redSpirit', name: '红色精神' },
+    { value: 'avocado', name: '牛油果' },
+    { value: 'autumn', name: '秋天' },
+    { value: 'oreo', name: '奥利奥' },
+    { value: 'shallowSea', name: '浅海' },
+    { value: 'lemonBubbles', name: '柠檬气泡' },
+    { value: 'rose', name: '玫瑰' },
+    { value: 'seaBlueLine', name: '海蓝线' },
+    { value: 'morandi', name: '莫兰迪' },
+    { value: 'cactus', name: '仙人掌' },
+    { value: 'classic2', name: '脑图经典2' },
+    { value: 'classic3', name: '脑图经典3' },
+    { value: 'classic4', name: '脑图经典4' },
+    { value: 'classic5', name: '脑图经典5' },
+    { value: 'classic6', name: '脑图经典6' },
+    { value: 'classic7', name: '脑图经典7' },
+    { value: 'classic8', name: '脑图经典8' },
+    { value: 'classic9', name: '脑图经典9' },
+    { value: 'classic10', name: '脑图经典10' },
+    { value: 'classic11', name: '脑图经典11' },
+    { value: 'classic12', name: '脑图经典12' },
+    { value: 'classic13', name: '脑图经典13' },
+    { value: 'classic14', name: '脑图经典14' },
+    { value: 'classic15', name: '脑图经典15' },
+    // 深色主题
+    { value: 'dark', name: '暗色' },
+    { value: 'dark2', name: '暗色2' },
+    { value: 'dark3', name: '暗色3' },
+    { value: 'dark4', name: '暗色4' },
+    { value: 'node', name: 'node' },
+    { value: 'blackHumour', name: '黑色幽默' },
+    { value: 'lateNightOffice', name: '深夜办公室' },
+    { value: 'blackGold', name: '黑金' }
+  ];
+
+  // 默认主题配置
+  private readonly DEFAULT_THEME_CONFIG = {
+    imgMaxWidth: 350,
+    imgMaxHeight: 200,
+    root: {
+      shape: "rectangle"
+    },
+    second: {
+      fontSize: 24,
+      shape: "rectangle"
+    },
+    node: {
+      fontSize: 24,
+      borderColor: "#4D4D4D",
+      borderWidth: 2
+    }
+  };
+
   private async initSetting() {
     await this.loadData(STORAGE_NAME);
     if (!this.data[STORAGE_NAME]) this.data[STORAGE_NAME] = {};
-    if (typeof this.data[STORAGE_NAME].labelDisplay === 'undefined') this.data[STORAGE_NAME].labelDisplay = "showLabelOnHover";
+    if (typeof this.data[STORAGE_NAME].labelDisplay === 'undefined') this.data[STORAGE_NAME].labelDisplay = "showLabelAlways";
     if (typeof this.data[STORAGE_NAME].embedImageFormat === 'undefined') this.data[STORAGE_NAME].embedImageFormat = "svg";
     if (typeof this.data[STORAGE_NAME].editWindow === 'undefined') this.data[STORAGE_NAME].editWindow = 'dialog';
+    if (typeof this.data[STORAGE_NAME].defaultTheme === 'undefined') this.data[STORAGE_NAME].defaultTheme = 'lemonBubbles';
+    if (typeof this.data[STORAGE_NAME].themeConfig === 'undefined') this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
 
     this.settingItems = [
       {
@@ -302,6 +391,33 @@ export default class MindmapPlugin extends Plugin {
             return `<option value="${option}"${isSelected ? " selected" : ""}>${option}</option>`;
           }).join("");
           return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="editWindow">${optionsHTML}</select>`);
+        },
+      },
+      {
+        title: this.i18n.defaultTheme,
+        direction: "column",
+        description: this.i18n.defaultThemeDescription,
+        createActionElement: () => {
+          const optionsHTML = this.THEME_LIST.map(theme => {
+            const isSelected = theme.value === this.data[STORAGE_NAME].defaultTheme;
+            return `<option value="${theme.value}"${isSelected ? " selected" : ""}>${theme.name}</option>`;
+          }).join("");
+          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="defaultTheme">${optionsHTML}</select>`);
+        },
+      },
+      {
+        title: this.i18n.themeConfig,
+        direction: "row",
+        description: this.i18n.themeConfigDescription,
+        createActionElement: () => {
+          const textarea = document.createElement("textarea");
+          textarea.className = "b3-text-field fn__block";
+          textarea.setAttribute("data-type", "themeConfig");
+          textarea.style.height = "200px";
+          textarea.style.fontFamily = "monospace";
+          textarea.style.resize = "vertical";
+          textarea.value = this.data[STORAGE_NAME].themeConfig || JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
+          return textarea;
         },
       }
     ];
@@ -393,6 +509,19 @@ export default class MindmapPlugin extends Plugin {
 
   public async newMindmapImage(protyle, blockID: string, callback?: (imageInfo: MindmapImageInfo) => void) {
     const format = this.data[STORAGE_NAME].embedImageFormat;
+    const defaultTheme = this.data[STORAGE_NAME].defaultTheme || 'lemonBubbles';
+    
+    // 获取主题自定义配置
+    let themeConfig = this.DEFAULT_THEME_CONFIG;
+    try {
+      const configStr = this.data[STORAGE_NAME].themeConfig;
+      if (configStr) {
+        themeConfig = JSON.parse(configStr);
+      }
+    } catch (e) {
+      console.warn('Failed to parse theme config, using default');
+    }
+    
     const imageName = `mindmap-image-${window.Lute.NewNodeID()}.${format}`;
     const placeholderImageContent = this.getPlaceholderImageContent(format);
     const blob = dataURLToBlob(placeholderImageContent);
@@ -413,24 +542,8 @@ export default class MindmapPlugin extends Plugin {
           children: []
         },
         theme: {
-          template: 'lemonBubbles',
-          config: {
-            imgMaxWidth: 350,
-            // 图片显示的最大高度
-            imgMaxHeight: 200,
-            root: {
-              shape: "rectangle"
-            },
-            second: {
-              fontSize: 24,
-              shape: "rectangle"
-            },
-            node: {
-              fontSize: 24,
-              borderColor: "#4D4D4D",
-              borderWidth: 2
-            }
-          }
+          template: defaultTheme,
+          config: themeConfig
         },
         layout: 'logicalStructure',
         config: {},

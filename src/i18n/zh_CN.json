@@ -12,5 +12,9 @@
   "editWindow": "编辑窗口",
   "editWindowDescription": "编辑窗口的形式",
   "themeMode": "主题模式",
-  "themeModeDescription": "窗口的主题"
+  "themeModeDescription": "窗口的主题",
+  "defaultTheme": "默认主题",
+  "defaultThemeDescription": "新建思维导图时使用的默认主题",
+  "themeConfig": "主题自定义配置",
+  "themeConfigDescription": "新建思维导图时使用的主题自定义配置（JSON格式），详见<a href='https://wanglin2.github.io/mind-map-docs/course/course10.html#%E4%B8%BB%E9%A2%98' target='_blank'>主题文档</a>"
 }
