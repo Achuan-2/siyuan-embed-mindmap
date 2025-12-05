@@ -254,6 +254,7 @@ export default class MindmapPlugin extends Plugin {
       this.data[STORAGE_NAME].embedImageFormat = (dialog.element.querySelector("[data-type='embedImageFormat']") as HTMLSelectElement).value;
       this.data[STORAGE_NAME].editWindow = (dialog.element.querySelector("[data-type='editWindow']") as HTMLSelectElement).value;
       this.data[STORAGE_NAME].defaultTheme = (dialog.element.querySelector("[data-type='defaultTheme']") as HTMLSelectElement).value;
+      this.data[STORAGE_NAME].defaultRainbowLines = (dialog.element.querySelector("[data-type='defaultRainbowLines']") as HTMLInputElement).value;
       
       // 验证并保存主题配置
       const themeConfigValue = (dialog.element.querySelector("[data-type='themeConfig']") as HTMLTextAreaElement).value;
@@ -267,8 +268,6 @@ export default class MindmapPlugin extends Plugin {
       }
       
       this.saveData(STORAGE_NAME, this.data[STORAGE_NAME]);
-      this.reloadAllEditor();
-      this.removeAllMindmapTab();
       dialog.destroy();
     });
   }
@@ -347,6 +346,89 @@ export default class MindmapPlugin extends Plugin {
     }
   };
 
+  // 彩虹线条配置列表
+  private readonly RAINBOW_LINES_OPTIONS = [
+    { value: 'none', name: '无', list: null },
+    {
+      value: 'colors1',
+      name: '彩虹1',
+      list: [
+        'rgb(255, 213, 73)',
+        'rgb(255, 136, 126)',
+        'rgb(107, 225, 141)',
+        'rgb(151, 171, 255)',
+        'rgb(129, 220, 242)',
+        'rgb(255, 163, 125)',
+        'rgb(152, 132, 234)'
+      ]
+    },
+    {
+      value: 'colors2',
+      name: '彩虹2',
+      list: [
+        'rgb(248, 93, 93)',
+        'rgb(255, 151, 84)',
+        'rgb(255, 214, 69)',
+        'rgb(73, 205, 140)',
+        'rgb(64, 192, 255)',
+        'rgb(84, 110, 214)',
+        'rgb(164, 93, 220)'
+      ]
+    },
+    {
+      value: 'colors3',
+      name: '彩虹3',
+      list: [
+        'rgb(140, 240, 231)',
+        'rgb(74, 210, 255)',
+        'rgb(65, 168, 243)',
+        'rgb(49, 128, 205)',
+        'rgb(188, 226, 132)',
+        'rgb(113, 215, 123)',
+        'rgb(120, 191, 109)'
+      ]
+    },
+    {
+      value: 'colors4',
+      name: '彩虹4',
+      list: [
+        'rgb(169, 98, 99)',
+        'rgb(245, 125, 123)',
+        'rgb(254, 183, 168)',
+        'rgb(251, 218, 171)',
+        'rgb(138, 163, 181)',
+        'rgb(131, 127, 161)',
+        'rgb(84, 83, 140)'
+      ]
+    },
+    {
+      value: 'colors5',
+      name: '彩虹5',
+      list: [
+        'rgb(255, 229, 142)',
+        'rgb(254, 158, 41)',
+        'rgb(248, 119, 44)',
+        'rgb(232, 82, 80)',
+        'rgb(182, 66, 98)',
+        'rgb(99, 54, 99)',
+        'rgb(65, 40, 82)'
+      ]
+    },
+    {
+      value: 'colors6',
+      name: '彩虹6',
+      list: [
+        'rgb(171, 227, 209)',
+        'rgb(107, 201, 196)',
+        'rgb(55, 170, 169)',
+        'rgb(18, 135, 131)',
+        'rgb(74, 139, 166)',
+        'rgb(75, 105, 150)',
+        'rgb(57, 75, 133)'
+      ]
+    }
+  ];
+
   private async initSetting() {
     await this.loadData(STORAGE_NAME);
     if (!this.data[STORAGE_NAME]) this.data[STORAGE_NAME] = {};
@@ -355,6 +437,7 @@ export default class MindmapPlugin extends Plugin {
     if (typeof this.data[STORAGE_NAME].editWindow === 'undefined') this.data[STORAGE_NAME].editWindow = 'dialog';
     if (typeof this.data[STORAGE_NAME].defaultTheme === 'undefined') this.data[STORAGE_NAME].defaultTheme = 'lemonBubbles';
     if (typeof this.data[STORAGE_NAME].themeConfig === 'undefined') this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
+    if (typeof this.data[STORAGE_NAME].defaultRainbowLines === 'undefined') this.data[STORAGE_NAME].defaultRainbowLines = 'none';
 
     this.settingItems = [
       {
@@ -421,6 +504,88 @@ export default class MindmapPlugin extends Plugin {
           textarea.style.resize = "vertical";
           textarea.value = this.data[STORAGE_NAME].themeConfig || JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
           return textarea;
+        },
+      },
+      {
+        title: this.i18n.defaultRainbowLines || '默认彩虹线条',
+        direction: "row",
+        description: this.i18n.defaultRainbowLinesDescription || '新建思维导图时默认使用的彩虹线条样式',
+        createActionElement: () => {
+          const container = document.createElement('div');
+          container.className = 'rainbow-lines-selector';
+          container.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%;';
+          
+          this.RAINBOW_LINES_OPTIONS.forEach(option => {
+            const isSelected = option.value === this.data[STORAGE_NAME].defaultRainbowLines;
+            const optionEl = document.createElement('div');
+            optionEl.className = 'rainbow-option' + (isSelected ? ' selected' : '');
+            optionEl.dataset.value = option.value;
+            optionEl.style.cssText = `
+              display: flex;
+              align-items: center;
+              padding: 6px 10px;
+              border-radius: 4px;
+              cursor: pointer;
+              border: 2px solid ${isSelected ? 'var(--b3-theme-primary)' : 'transparent'};
+              background: var(--b3-theme-surface);
+              transition: all 0.2s;
+            `;
+            
+            if (option.list) {
+              // 有颜色列表，显示颜色条
+              const colorsBar = document.createElement('div');
+              colorsBar.className = 'colors-bar';
+              colorsBar.style.cssText = 'display: flex; width: 100%; height: 20px; border-radius: 3px; overflow: hidden;';
+              option.list.forEach(color => {
+                const colorItem = document.createElement('span');
+                colorItem.style.cssText = `flex: 1; background-color: ${color};`;
+                colorsBar.appendChild(colorItem);
+              });
+              optionEl.appendChild(colorsBar);
+            } else {
+              // 无颜色列表，显示文字
+              const textSpan = document.createElement('span');
+              textSpan.textContent = option.name;
+              textSpan.style.cssText = 'color: var(--b3-theme-on-surface);';
+              optionEl.appendChild(textSpan);
+            }
+            
+            optionEl.addEventListener('click', () => {
+              // 移除其他选中状态
+              container.querySelectorAll('.rainbow-option').forEach(el => {
+                (el as HTMLElement).classList.remove('selected');
+                (el as HTMLElement).style.borderColor = 'transparent';
+              });
+              // 设置当前选中
+              optionEl.classList.add('selected');
+              optionEl.style.borderColor = 'var(--b3-theme-primary)';
+              // 更新隐藏的 input 值
+              hiddenInput.value = option.value;
+            });
+            
+            optionEl.addEventListener('mouseenter', () => {
+              if (!optionEl.classList.contains('selected')) {
+                optionEl.style.borderColor = 'var(--b3-theme-primary-light)';
+              }
+            });
+            
+            optionEl.addEventListener('mouseleave', () => {
+              if (!optionEl.classList.contains('selected')) {
+                optionEl.style.borderColor = 'transparent';
+              }
+            });
+            
+            container.appendChild(optionEl);
+          });
+          
+          // 隐藏的 input 用于保存值
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.setAttribute('data-type', 'defaultRainbowLines');
+          hiddenInput.value = this.data[STORAGE_NAME].defaultRainbowLines || 'none';
+          container.appendChild(hiddenInput);
+          
+          return container;
         },
       }
     ];
@@ -513,6 +678,7 @@ export default class MindmapPlugin extends Plugin {
   public async newMindmapImage(protyle, blockID: string, callback?: (imageInfo: MindmapImageInfo) => void) {
     const format = this.data[STORAGE_NAME].embedImageFormat;
     const defaultTheme = this.data[STORAGE_NAME].defaultTheme || 'lemonBubbles';
+    const defaultRainbowLines = this.data[STORAGE_NAME].defaultRainbowLines || 'none';
     
     // 获取主题自定义配置
     let themeConfig = this.DEFAULT_THEME_CONFIG;
@@ -523,6 +689,18 @@ export default class MindmapPlugin extends Plugin {
       }
     } catch (e) {
       console.warn('Failed to parse theme config, using default');
+    }
+
+    // 获取彩虹线条配置
+    let rainbowLinesConfig: { open: boolean; colorsList?: string[] } = { open: false };
+    if (defaultRainbowLines !== 'none') {
+      const rainbowOption = this.RAINBOW_LINES_OPTIONS.find(opt => opt.value === defaultRainbowLines);
+      if (rainbowOption && rainbowOption.list) {
+        rainbowLinesConfig = {
+          open: true,
+          colorsList: rainbowOption.list
+        };
+      }
     }
     
     const imageName = `mindmap-image-${window.Lute.NewNodeID()}.${format}`;
@@ -552,8 +730,20 @@ export default class MindmapPlugin extends Plugin {
         config: {},
         view: null
       };
+
+      // 初始化配置（彩虹线条等）
+      const initialConfig = {
+        rainbowLinesConfig: rainbowLinesConfig
+      };
+      console.log('Initial mindmap config:', initialConfig);
       try {
-        await fetchSyncPost('/api/attr/setBlockAttrs', { id: blockID, attrs: { 'custom-mindmap': JSON.stringify(initial) } });
+        await fetchSyncPost('/api/attr/setBlockAttrs', { 
+          id: blockID, 
+          attrs: { 
+            'custom-mindmap': JSON.stringify(initial),
+            'custom-mindmap-setting': JSON.stringify(initialConfig)
+          } 
+        });
       } catch (err) { }
 
       const imageInfo: MindmapImageInfo = {
