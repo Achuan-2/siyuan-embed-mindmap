@@ -1,3 +1,7 @@
+## v1.3.0 / 20241205
+
+- ✨笔记转导图功能 [#29](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/29)
+
 ## v1.2.0 / 20241204
 
 - 🎨插件改名siyuan-plugin-simplemindmap
