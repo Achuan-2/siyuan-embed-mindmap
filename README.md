@@ -1,11 +1,10 @@
 ## 1 📖 使用
 
-输入 `/mindmap`​或`/脑图`​或`/思绪思维导图`,创建图片并打开思维导图编辑器，编辑完成后点击保存即可。
+输入 `/mindmap`或 `/脑图`或 `/思绪思维导图`,创建图片并打开思维导图编辑器，编辑完成后点击保存即可。
 
-<img alt="image" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/network-asset-b6f2eee6-7954-4ecf-a53a-b19174ce0d30-20251204205852-56pdg0z.png" style="width: 1906px;" />
+<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-b6f2eee6-7954-4ecf-a53a-b19174ce0d30-20251204205852-56pdg0z.png" style="width: 1906px;" />
 
-<img alt="image" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/network-asset-4bd6dc62-5425-4f5d-92da-f250d4b2acd8-20251204205949-w7j1nie.png" />
-
+<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-4bd6dc62-5425-4f5d-92da-f250d4b2acd8-20251204205949-w7j1nie.png" />
 
 > ⚠️ 使用注意：目前图片支持二次编辑是通过自定义块属性写入思维导图数据实现的，如果自定义块属性被删除或者修改，可能会导致思维导图数据丢失，无法二次编辑。
 
@@ -34,28 +33,28 @@
 - 自动设置块链接：对于文档大纲，每个节点都设置对应标题链接，对于块内容，对根节点设置块链接
 - 自动更新内容：如果勾选「自动获取块内容」，每次打开都先自动获取块内容，更新思维导图
 
-<img alt="image" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/image-20251205103428-9xjoht6.png" />
+<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/image-20251205103428-9xjoht6.png" />
 
 **效果展示**
 
 - 导入文档大纲
 
-  <img alt="导入文档大纲.gif" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/导入文档大纲-TOpBvCj-20251205103744-l9p522r.gif" />
+  <img alt="导入文档大纲.gif" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E5%AF%BC%E5%85%A5%E6%96%87%E6%A1%A3%E5%A4%A7%E7%BA%B2-TOpBvCj-20251205103744-l9p522r.gif" />
 - 导入标题块
 
   图片也是可以直接自动导入的哦
 
-  <img alt="导入标题.gif" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/导入标题-eQXPTKm-20251205103754-e605v4h.gif" />
+  <img alt="导入标题.gif" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E5%AF%BC%E5%85%A5%E6%A0%87%E9%A2%98-eQXPTKm-20251205103754-e605v4h.gif" />
 
 ### 2.3 块链接悬浮预览
 
 节点链接如果是思源块链接，支持悬浮预览显示笔记内容
 
-<img alt="思维导图悬浮预览" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/思维导图悬浮预览-20251205103903-64rv9e5.gif" />
+<img alt="思维导图悬浮预览" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E6%80%9D%E7%BB%B4%E5%AF%BC%E5%9B%BE%E6%82%AC%E6%B5%AE%E9%A2%84%E8%A7%88-20251205103903-64rv9e5.gif" />
 
 ## 3 ⚙️ 插件设置概览
 
-<img alt="image" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/network-asset-c2be3dfa-54aa-48e2-bf28-ae6e7df1bef3-20251204205959-gwpbfmn.png" style="width: 1121px;" />
+<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-c2be3dfa-54aa-48e2-bf28-ae6e7df1bef3-20251204205959-gwpbfmn.png" style="width: 1121px;" />
 
 ## 4 📦 开发
 
@@ -87,4 +86,4 @@ cd ../.. && npm run build
 
 累积赞赏50元的朋友如果想加我微信，可以在赞赏的时候备注微信号，或者发邮件到achuan-2@outlook.com来进行好友申请
 
-<img alt="image" src="https://assets.b3logfile.com/siyuan/1610205759005/assets/network-asset-network-asset-image-20250614123558-fuhir5v.png" />
+<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-network-asset-image-20250614123558-fuhir5v.png" />
