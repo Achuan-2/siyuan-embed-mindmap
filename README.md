@@ -18,7 +18,7 @@
 
 本插件对Markdown粘贴做了很多优化
 
-- 顶栏添加了粘贴Markdown按钮，迅速把Markdown转为思维导图，也可以选择某个节点粘贴Markdown为子节点，支持标题和列表混排解析，支持导入加粗、斜体等markdown富文本样式
+- 顶栏添加了粘贴Markdown按钮，迅速把Markdown转为思维导图，也可以选择某个节点粘贴Markdown为子节点，支持标题和列表混排解析，支持导入加粗、斜体、超链接等markdown富文本样式
 - 粘贴markdown支持解析思源图片、这样思源笔记的图文笔记可以迅速转为思维导图。支持解析思源笔记的块引用和块链接，迅速添加带跳转链接的节点
 - 支持脑图大纲复制为Markdown多级列表
 
@@ -74,6 +74,7 @@ cd ../.. && npm run build
   - 导入markdown支持解析思源图片、思源块链接和块引用
   - 优化保存图片：节点高亮和折叠按钮隐藏
   - 图片拖拽和节点宽度拖拽支持吸附
+  - 支持行内超链接
 - 参考了[YuxinZhaozyx](https://github.com/YuxinZhaozyx/siyuan-embed-excalidraw)嵌入式系列插件的设计
 
 ## 6 ❤️用爱发电
