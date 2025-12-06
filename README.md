@@ -67,7 +67,7 @@ cd ../.. && npm run build
 
 ## 5 ❤️致谢
 
-- 思维导图功能使用[mindmap](https://github.com/wanglin2/mind-map)，并进行了魔改，魔改repo见[https://github.com/Achuan-2/mind-map]
+- 思维导图功能使用开源的[思绪思维导图](https://github.com/wanglin2/mind-map)，并进行了魔改，魔改repo见[https://github.com/Achuan-2/mind-map]
 
   - 节点也可以直接选中粘贴markdown批量粘贴出多个节点
   - 支持大纲复制为Markdown多级列表
