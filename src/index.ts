@@ -916,7 +916,8 @@ export default class MindmapPlugin extends Plugin {
       }
 
       // 生成思维导图数据
-      const mindmapData = await this.generateDocTreeMindmap(notebookId, startPath, 0, sortMode, rootName);
+      const rootDocId = isNotebook ? null : element.getAttribute("data-node-id");
+      const mindmapData = await this.generateDocTreeMindmap(notebookId, startPath, 0, sortMode, rootName, rootDocId);
 
       // 准备块设置信息
       const blockSettings = {
@@ -954,7 +955,7 @@ export default class MindmapPlugin extends Plugin {
     }
   }
 
-  private async generateDocTreeMindmap(notebookId: string, startPath: string, maxLevel: number, sortMode: number, rootName: string) {
+  private async generateDocTreeMindmap(notebookId: string, startPath: string, maxLevel: number, sortMode: number, rootName: string, rootDocId?: string) {
     // 递归获取文档树
     const getDocTree = async (currentPath: string, currentLevel: number = 1): Promise<any[]> => {
       if (maxLevel > 0 && currentLevel > maxLevel) return [];
@@ -1023,8 +1024,12 @@ export default class MindmapPlugin extends Plugin {
       });
     };
 
+    // 根节点：如果是文档，添加行内链接；如果是笔记本，使用纯文本
     const root = {
-      data: {
+      data: rootDocId ? {
+        richText: true,
+        text: `<p><a href="siyuan://blocks/${rootDocId}" rel="noopener noreferrer" target="_blank">${rootName || '文档树'}</a></p>`
+      } : {
         text: rootName || '文档树'
       },
       children: convert(tree, 1)
@@ -1137,7 +1142,6 @@ export default class MindmapPlugin extends Plugin {
           }), '*');
         } else if (message.event === 'save') {
           // 拦截保存事件，不执行实际保存，只在控制台提示
-          console.log('[临时思维导图] 预览模式下的修改不会保存，请使用导出功能');
         } else if (message.event === 'hover_block_link') {
           // 处理思源链接悬浮预览
           const blockId = message.blockId;
@@ -1541,7 +1545,6 @@ export default class MindmapPlugin extends Plugin {
               });
             } else if (message.event === 'save') {
               // 拦截保存事件
-              console.log('[临时思维导图] 预览模式下的修改不会保存，请使用导出功能');
             } else if (message.event === 'hover_block_link') {
               // 处理思源链接悬浮预览
               const blockId = message.blockId;
