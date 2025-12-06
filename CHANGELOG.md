@@ -1,4 +1,14 @@
 
+## v1.6.0 /20251206
+
+- ✨行内样式支持超链接 [#20](https://github.com/Achuan-2/siyuan-plugin-simplemindmap/issues/20)
+- 🎨Markdown粘贴：支持解析思源块引为超链接
+- 🎨Markdown粘贴：选中节点粘贴思源块链接会自动给节点添加节点链接
+- 🎨笔记转思维导图优化：忽略当前导图的图片 [#41](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/41)
+- 🎨节点链接弹窗链接优化：不要预设链接类型 [#35](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/35)
+- 🎨节点链接弹窗往输入框粘贴思源块引用，自动处理为块链接
+- 🎨优化图片右上角编辑按钮对其他插件的兼容性 [#39](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/39)
+
 ## v1.5.0 / 20251205
 - 🎨 支持设置是否启用彩虹线条 [#38](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/38)
 - 🎨彩虹线条和导图设置保存在块属性里[#36](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/36) [#28](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/28)
