@@ -73,12 +73,12 @@ export default defineConfig(({
             dest: "./i18n/",
           },
           {
-            src: "./mindmap-web/index.html",
-            dest: "./mind/",
+            src: "./mindmap-embed/index.html",
+            dest: "./mindmap-embed/",
           },
           {
-            src: "./mindmap-web/dist/**",
-            dest: "./mind/dist/",
+            src: "./mindmap-embed/dist/**",
+            dest: "./mindmap-embed/dist/",
           }
         ],
       }),

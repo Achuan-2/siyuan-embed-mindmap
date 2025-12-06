@@ -59,9 +59,11 @@ export default class MindmapPlugin extends Plugin {
   private _openMenuImageHandler;
   private _globalKeyDownHandler;
   private _mouseoverHandler;
+  private _openMenuDoctreeHandler;
 
   private settingItems: SettingItem[];
   public EDIT_TAB_TYPE = "mindmap-edit-tab";
+  public TEMP_TAB_TYPE = "mindmap-temp-tab";
 
   async onload() {
     // 添加自定义思维导图图标
@@ -166,6 +168,9 @@ export default class MindmapPlugin extends Plugin {
     this._openMenuImageHandler = this.openMenuImageHandler.bind(this);
     this.eventBus.on("open-menu-image", this._openMenuImageHandler);
 
+    this._openMenuDoctreeHandler = this.openMenuDoctreeHandler.bind(this);
+    this.eventBus.on("open-menu-doctree", this._openMenuDoctreeHandler);
+
     this._globalKeyDownHandler = this.globalKeyDownHandler.bind(this);
     document.documentElement.addEventListener("keydown", this._globalKeyDownHandler);
 
@@ -175,6 +180,7 @@ export default class MindmapPlugin extends Plugin {
   onunload() {
     if (this._mutationObserver) this._mutationObserver.disconnect();
     if (this._openMenuImageHandler) this.eventBus.off("open-menu-image", this._openMenuImageHandler);
+    if (this._openMenuDoctreeHandler) this.eventBus.off("open-menu-doctree", this._openMenuDoctreeHandler);
     if (this._globalKeyDownHandler) document.documentElement.removeEventListener("keydown", this._globalKeyDownHandler);
     if (this._mouseoverHandler) document.removeEventListener('mouseover', this._mouseoverHandler);
     this.reloadAllEditor();
@@ -835,6 +841,315 @@ export default class MindmapPlugin extends Plugin {
     }
   }
 
+  private openMenuDoctreeHandler({ detail }) {
+    const elements = detail.elements;
+    if (elements.length !== 1) return;
+
+    const element = elements[0];
+    const isNotebook = element.getAttribute("data-type") === "navigation-root";
+    const isParentDoc = !isNotebook && parseInt(element.getAttribute("data-count")) > 0;
+
+    if (!isNotebook && !isParentDoc) return;
+
+    // 添加菜单项
+    detail.menu.addItem({
+      icon: "iconSimpleMindmap",
+      label: this.i18n.docTreeToMindmap || "子文档转导图",
+      click: () => {
+        this.showDocTreeMindmap(element, isNotebook);
+      }
+    });
+  }
+
+  private async showDocTreeMindmap(element: HTMLElement, isNotebook: boolean) {
+    // 显示加载提示
+    const loadingDialog = new Dialog({
+      title: this.i18n.docTreeToMindmap || "子文档转导图",
+      content: `<div class="b3-dialog__content" style="text-align: center; padding: 40px;">
+        <div class="fn__loading"><svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg></div>
+        <div style="margin-top: 16px;">正在生成思维导图...</div>
+      </div>`,
+      width: "400px",
+    });
+
+    try {
+      let notebookId: string;
+      let startPath: string;
+      let rootName: string;
+
+      if (isNotebook) {
+        notebookId = element.parentElement.getAttribute("data-url");
+        startPath = "/";
+        rootName = element.querySelector(".b3-list-item__text").textContent;
+      } else {
+        const docId = element.getAttribute("data-node-id");
+        // 获取文档信息
+        const blockRes = await fetchSyncPost('/api/query/sql', {
+          stmt: `SELECT box, path, content FROM blocks WHERE id = '${docId}'`
+        });
+
+        if (!blockRes || blockRes.code !== 0 || !blockRes.data || blockRes.data.length === 0) {
+          throw new Error("无法获取文档信息");
+        }
+
+        const blockInfo = blockRes.data[0];
+        notebookId = blockInfo.box;
+        startPath = blockInfo.path.replace(/\.sy$/, '');
+        rootName = blockInfo.content;
+      }
+
+      // 获取排序模式
+      let sortMode = 15;
+      try {
+        const confRes = await fetchSyncPost('/api/notebook/getNotebookConf', {
+          notebook: notebookId
+        });
+        if (confRes && confRes.code === 0 && confRes.data && confRes.data.conf) {
+          sortMode = confRes.data.conf.sortMode;
+          if (sortMode === 15) {
+            sortMode = (window as any)?.siyuan?.config?.fileTree?.sort || 15;
+          }
+        }
+      } catch (e) {
+        console.warn('获取排序模式失败，使用默认值', e);
+      }
+
+      // 生成思维导图数据
+      const mindmapData = await this.generateDocTreeMindmap(notebookId, startPath, 0, sortMode, rootName);
+
+      // 准备块设置信息
+      const blockSettings = {
+        blockId: isNotebook ? notebookId : element.getAttribute("data-node-id"),
+        importType: 'docTree',
+        autoNumber: false,
+        maxLevel: 0,
+        autoRefresh: false,
+        // 额外保存用于刷新的信息
+        isNotebook: isNotebook,
+        notebookId: notebookId,
+        startPath: startPath,
+        rootName: rootName
+      };
+
+      // 关闭加载对话框
+      loadingDialog.destroy();
+
+      // 根据设置选择打开方式
+      if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
+        this.openTempMindmapTab(mindmapData, rootName, blockSettings);
+      } else {
+        this.openTempMindmapDialog(mindmapData, blockSettings);
+      }
+
+    } catch (error) {
+      console.error('生成文档树思维导图失败:', error);
+      loadingDialog.destroy();
+      
+      new Dialog({
+        title: "错误",
+        content: `<div class="b3-dialog__content">${error.message || '生成失败'}</div>`,
+        width: "400px",
+      });
+    }
+  }
+
+  private async generateDocTreeMindmap(notebookId: string, startPath: string, maxLevel: number, sortMode: number, rootName: string) {
+    // 递归获取文档树
+    const getDocTree = async (currentPath: string, currentLevel: number = 1): Promise<any[]> => {
+      if (maxLevel > 0 && currentLevel > maxLevel) return [];
+
+      try {
+        const res = await fetchSyncPost('/api/filetree/listDocsByPath', {
+          notebook: notebookId,
+          path: currentPath,
+          sort: sortMode,
+          showHidden: false,
+          maxListCount: 1000
+        });
+
+        if (!res || res.code !== 0 || !res.data || !res.data.files) {
+          return [];
+        }
+
+        const docPromises = res.data.files.map(async (file) => {
+          const node = {
+            name: (file.name || '').replace(/\.sy$/i, ''),
+            id: file.id,
+            path: (file.path || '').replace(/\.sy$/i, ''),
+            children: []
+          };
+
+          if (file.subFileCount > 0) {
+            const childPath = node.path || currentPath;
+            node.children = await getDocTree(childPath, currentLevel + 1);
+          }
+          return node;
+        });
+
+        return await Promise.all(docPromises);
+      } catch (error) {
+        console.error(`处理路径 [${currentPath}] 时发生错误:`, error);
+        return [];
+      }
+    };
+
+    const tree = await getDocTree(startPath);
+
+    // 转换为思维导图格式
+    const convert = (nodes: any[], currentLevel: number = 1) => {
+      if (!nodes || nodes.length === 0) return [];
+      if (maxLevel > 0 && currentLevel > maxLevel) return [];
+
+      return nodes.map((n) => {
+        const text = n.name || '文档';
+        const node = {
+          data: {
+            text,
+            hyperlink: n.id ? `siyuan://blocks/${n.id}` : undefined,
+            hyperlinkTitle: text
+          },
+          children: []
+        };
+
+        if (n.children && n.children.length > 0) {
+          node.children = convert(n.children, currentLevel + 1);
+        }
+
+        return node;
+      });
+    };
+
+    const root = {
+      data: {
+        text: rootName || '文档树'
+      },
+      children: convert(tree, 1)
+    };
+
+    return root;
+  }
+
+  private openTempMindmapDialog(mindmapData: any, blockSettings?: any) {
+    const iframeId = `mindmap-temp-${Date.now()}`;
+    const mindmapURL = this.isBrowser 
+      ? `/plugins/${this.name}/mindmap-embed/index.html`
+      : `plugins/${this.name}/mindmap-embed/index.html`;
+    
+    const dialogHTML = `
+<div class="b3-dialog__content" style="padding: 0; height: calc(80vh - 100px);">
+  <div style="padding: 8px 16px; background: var(--b3-theme-surface); border-bottom: 1px solid var(--b3-border-color); color: var(--b3-theme-on-surface); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <svg style="width: 14px; height: 14px; vertical-align: middle;"><use xlink:href="#iconInfo"></use></svg>
+      <span style="margin-left: 4px; font-size: 12px;">${this.i18n.tempMindmapTip || '临时预览模式：可以编辑但不会自动保存，请使用导出功能保存您的修改'}</span>
+    </div>
+    <button class="b3-button b3-button--outline" id="openInTab" style="padding: 4px 8px; font-size: 12px;">
+      <svg style="width: 12px; height: 12px;"><use xlink:href="#iconLayoutTab"></use></svg>
+      <span style="margin-left: 4px;">${this.i18n.openInTab || '在标签页中打开'}</span>
+    </button>
+  </div>
+  <iframe 
+    id="${iframeId}" 
+    src="${mindmapURL}" 
+    style="width: 100%; height: calc(100% - 40px); border: none;"
+  ></iframe>
+</div>
+    `;
+
+    const dialog = new Dialog({
+      title: this.i18n.docTreeToMindmap || "子文档转导图",
+      content: dialogHTML,
+      width: this.isMobile ? "92vw" : "90vw",
+      height: "80vh",
+    });
+
+    // 等待 iframe 加载完成
+    const iframe = dialog.element.querySelector(`#${iframeId}`) as HTMLIFrameElement;
+    const openInTabBtn = dialog.element.querySelector('#openInTab') as HTMLElement;
+    
+    // 处理在标签页打开按钮
+    if (openInTabBtn) {
+      openInTabBtn.addEventListener('click', () => {
+        // 从 mindmapData 中获取标题
+        const rootName = mindmapData?.data?.text || '子文档转导图';
+        dialog.destroy();
+        this.openTempMindmapTab(mindmapData, rootName, blockSettings);
+      });
+    }
+
+    // 监听 iframe 的消息
+    const messageHandler = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.event === 'request_data') {
+          // iframe 请求数据 - 可编辑但不自动保存
+          iframe.contentWindow.postMessage(JSON.stringify({
+            event: 'init_data',
+            mindMapData: {
+              root: mindmapData,
+              theme: {
+                template: this.data[STORAGE_NAME].defaultTheme || 'lemonBubbles',
+                config: {}
+              },
+              layout: 'logicalStructure',
+              config: {},
+              view: null
+            },
+            mindMapConfig: {
+              // 移除 readonly 限制，允许编辑
+            },
+            lang: window.siyuan.config.lang === 'zh_CN' ? 'zh' : 'en',
+            localConfig: null,
+            blockSettings: blockSettings // 传递块设置
+          }), '*');
+        } else if (message.event === 'save') {
+          // 拦截保存事件，不执行实际保存，只在控制台提示
+          console.log('[临时思维导图] 预览模式下的修改不会保存，请使用导出功能');
+        } else if (message.event === 'hover_block_link') {
+          // 处理思源链接悬浮预览
+          const blockId = message.blockId;
+          const x = message.x;
+          const y = message.y;
+          if (blockId) {
+            this.addFloatLayer({
+              refDefs: [{ refID: blockId, defIDs: [] }],
+              x: x,
+              y: y - 70,
+              isBacklink: false
+            });
+          }
+        }
+      } catch (err) {
+        // 忽略非 JSON 消息
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
+
+    // 对话框销毁时移除监听
+    const originalDestroy = dialog.destroy.bind(dialog);
+    dialog.destroy = () => {
+      window.removeEventListener('message', messageHandler);
+      originalDestroy();
+    };
+  }
+
+  private openTempMindmapTab(mindmapData: any, rootName?: string, blockSettings?: any) {
+    const title = rootName || this.i18n.docTreeToMindmap || "子文档转导图";
+    openTab({
+      app: this.app,
+      custom: {
+        icon: "iconSimpleMindmap",
+        title: title,
+        data: { 
+          mindmapData: mindmapData,
+          blockSettings: blockSettings // 传递块设置
+        },
+        id: this.name + this.TEMP_TAB_TYPE
+      }
+    });
+  }
+
   private getActiveCustomTab(type: string): Custom {
     const allCustoms = getAllModels().custom;
     const activeTabElement = document.querySelector(".layout__wnd--active .item--focus");
@@ -892,7 +1207,7 @@ export default class MindmapPlugin extends Plugin {
         const iframeID = unicodeToBase64(`mindmap-edit-tab-${imageInfo.imageURL}`);
         const editTabHTML = `
     <div class="mindmap-edit-tab">
-      <iframe src="/plugins/siyuan-plugin-simplemindmap/mind/index.html?iframeID=${iframeID}"></iframe>
+      <iframe src="/plugins/siyuan-plugin-simplemindmap/mindmap-embed/index.html?iframeID=${iframeID}"></iframe>
     </div>`;
         this.element.innerHTML = editTabHTML;
 
@@ -1092,6 +1407,94 @@ export default class MindmapPlugin extends Plugin {
         };
       }
     });
+
+    // 添加临时思维导图标签页类型
+    this.addTab({
+      type: this.TEMP_TAB_TYPE,
+      init() {
+        const { mindmapData, blockSettings } = this.data;
+        const iframeID = `mindmap-temp-tab-${Date.now()}`;
+        const mindmapURL = that.isBrowser 
+          ? `/plugins/${that.name}/mindmap-embed/index.html`
+          : `plugins/${that.name}/mindmap-embed/index.html`;
+        
+        const editTabHTML = `
+    <div class="mindmap-edit-tab">
+      <div style="padding: 8px 16px; background: var(--b3-theme-surface); border-bottom: 1px solid var(--b3-border-color); color: var(--b3-theme-on-surface);">
+        <svg style="width: 14px; height: 14px; vertical-align: middle;"><use xlink:href="#iconInfo"></use></svg>
+        <span style="margin-left: 4px; font-size: 12px;">${that.i18n.tempMindmapTip || '临时预览模式：可以编辑但不会自动保存，请使用导出功能保存您的修改'}</span>
+      </div>
+      <iframe id="${iframeID}" src="${mindmapURL}" style="width: 100%; height: calc(100% - 40px); border: none;"></iframe>
+    </div>`;
+        this.element.innerHTML = editTabHTML;
+
+        const iframe = this.element.querySelector("iframe") as HTMLIFrameElement;
+        iframe.focus();
+
+        const postMessage = (message: any) => {
+          if (!iframe.contentWindow) return;
+          iframe.contentWindow.postMessage(JSON.stringify(message), '*');
+        };
+
+        const messageEventHandler = (event: MessageEvent) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (!message) return;
+            
+            if (message.event === 'request_data') {
+              postMessage({
+                event: 'init_data',
+                mindMapData: {
+                  root: mindmapData,
+                  theme: {
+                    template: that.data[STORAGE_NAME].defaultTheme || 'lemonBubbles',
+                    config: {}
+                  },
+                  layout: 'logicalStructure',
+                  config: {},
+                  view: null
+                },
+                mindMapConfig: {
+                  // 可编辑但不自动保存
+                },
+                lang: window.siyuan.config.lang === 'zh_CN' ? 'zh' : 'en',
+                localConfig: null,
+                blockSettings: blockSettings // 传递块设置
+              });
+            } else if (message.event === 'save') {
+              // 拦截保存事件
+              console.log('[临时思维导图] 预览模式下的修改不会保存，请使用导出功能');
+            } else if (message.event === 'hover_block_link') {
+              // 处理思源链接悬浮预览
+              const blockId = message.blockId;
+              const x = message.x;
+              const y = message.y;
+              if (blockId) {
+                that.addFloatLayer({
+                  refDefs: [{ refID: blockId, defIDs: [] }],
+                  x: x,
+                  y: y - 70,
+                  isBacklink: false
+                });
+              }
+            }
+          } catch (err) {
+            // 忽略非 JSON 消息
+          }
+        };
+
+        const keydownEventHandler = (event: KeyboardEvent) => {
+          that.tabHotKeyEventHandler(event, this);
+        };
+
+        window.addEventListener("message", messageEventHandler);
+        iframe.contentWindow.addEventListener("keydown", keydownEventHandler);
+        this.beforeDestroy = () => {
+          window.removeEventListener("message", messageEventHandler);
+          iframe.contentWindow.removeEventListener("keydown", keydownEventHandler);
+        };
+      }
+    });
   }
 
   public openEditTab(imageInfo: MindmapImageInfo, blockID?: string) {
@@ -1120,7 +1523,7 @@ export default class MindmapPlugin extends Plugin {
     </div>
     <div class="edit-dialog-container">
       <div class="edit-dialog-editor">
-        <iframe src="/plugins/siyuan-plugin-simplemindmap/mind/index.html?iframeID=${iframeID}"></iframe>
+        <iframe src="/plugins/siyuan-plugin-simplemindmap/mindmap-embed/index.html?iframeID=${iframeID}"></iframe>
       </div>
       <div class="fn__hr--b"></div>
     </div>

@@ -69,7 +69,8 @@
                                 },
                                 mindMapConfig: message.mindMapConfig || {},
                                 lang: message.lang || 'zh',
-                                localConfig: message.localConfig || null
+                                localConfig: message.localConfig || null,
+                                blockSettings: message.blockSettings || null
                             });
                         }
                     } catch (err) {
@@ -117,7 +118,8 @@
                         },
                         mindMapConfig: {},
                         lang: 'zh',
-                        localConfig: null
+                        localConfig: null,
+                        blockSettings: null
                     });
                 }, 1000);
             });
@@ -245,6 +247,20 @@
                 window.parent.postMessage(JSON.stringify({
                     event: 'save_local_config',
                     config: config
+                }), '*');
+            };
+            
+            // 获取块设置的函数
+            window.takeOverAppMethods.getBlockSettings = () => {
+                return data.blockSettings || null;
+            };
+            
+            // 保存块设置的函数
+            window.takeOverAppMethods.saveBlockSettings = settings => {
+                data.blockSettings = settings;
+                window.parent.postMessage(JSON.stringify({
+                    event: 'save_block_setting',
+                    settings: settings
                 }), '*');
             };
         };

@@ -52,6 +52,19 @@
 
 <img alt="思维导图悬浮预览" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E6%80%9D%E7%BB%B4%E5%AF%BC%E5%9B%BE%E6%82%AC%E6%B5%AE%E9%A2%84%E8%A7%88-20251205103903-64rv9e5.gif" />
 
+## 2.4 支持文档树内容显示
+
+
+笔记转导图功能支持输入笔记本id或者文档id，获取子文档树结构
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251206201628-2025-12-06.png)
+
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251206201639-2025-12-06.png)
+
+
+文档树也有菜单可以直接显示文档树结构
+
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251206201711-2025-12-06.png)
+
 ## 3 ⚙️ 插件设置概览
 
 <img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-c2be3dfa-54aa-48e2-bf28-ae6e7df1bef3-20251204205959-gwpbfmn.png" style="width: 1121px;" />
