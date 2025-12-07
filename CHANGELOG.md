@@ -1,3 +1,10 @@
+## v2.0.0 / 20251207
+
+
+- ✨ 支持导出的png/svg依然可再导入编辑 [#47](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/47)
+- 🎨 新建子节点不填充文字 [#49](https://github.com/Achuan-2/siyuan-embed-mindmap/issues/49)
+
+
 ## v1.9.2 / 20251207
 - 🎨 斜杆菜单插入的按钮id改为simplemindmap
 
