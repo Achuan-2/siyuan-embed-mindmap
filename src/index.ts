@@ -1172,7 +1172,7 @@ export default class MindmapPlugin extends Plugin {
   }
 
   private openTempMindmapTab(mindmapData: any, rootName?: string, blockSettings?: any) {
-    const title = rootName || this.i18n.docTreeToMindmap || "子文档转导图";
+    const title = (rootName || '').replace(/<[^>]*>/g, '') || this.i18n.docTreeToMindmap || "子文档转导图";
     openTab({
       app: this.app,
       custom: {
