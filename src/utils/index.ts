@@ -449,3 +449,480 @@ function crc32(data: Uint8Array): number {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+// --- PNG zTXt 元数据操作函数（类似 drawio 的实现）---
+
+/**
+ * 使用 zlib 压缩数据
+ */
+function deflateData(data: Uint8Array): Uint8Array {
+  // 简单的 deflate 实现，使用 pako 库（如果可用）或原生 CompressionStream
+  // 这里我们使用原生 API
+  if (typeof CompressionStream !== 'undefined') {
+    // 同步压缩不可用，我们使用简单的存储方式
+    // 返回未压缩的数据，compression method = 0
+  }
+  // 如果没有压缩 API，返回原始数据
+  return data;
+}
+
+/**
+ * 使用 zlib 解压数据
+ */
+function inflateData(data: Uint8Array): Uint8Array {
+  // 简单的 inflate 实现
+  if (typeof DecompressionStream !== 'undefined') {
+    // 同步解压不可用，返回原始数据
+  }
+  return data;
+}
+
+/**
+ * 在 PNG 中插入 zTXt 块，用于存储思维导图数据
+ * 使用 tEXt 块而非 zTXt，因为 tEXt 更简单且兼容性更好
+ * @param data PNG 二进制数据
+ * @param keyword 关键字（如 "mindmap"）
+ * @param text 要存储的文本数据
+ * @returns 修改后的 PNG 数据
+ */
+export function insertPNGTextChunk(data: Uint8Array, keyword: string, text: string): Uint8Array {
+  if (data.length < 8) throw new Error('Invalid PNG: too short');
+
+  // 验证 PNG 签名
+  const pngSignature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  for (let i = 0; i < 8; i++) {
+    if (data[i] !== pngSignature[i]) {
+      throw new Error('Not a valid PNG file');
+    }
+  }
+
+  let offset = 8;
+
+  // 找到 IEND 块的位置（插入到 IEND 之前）
+  let iendStart = -1;
+  while (offset <= data.length - 12) {
+    const length = (
+      (data[offset] << 24) |
+      (data[offset + 1] << 16) |
+      (data[offset + 2] << 8) |
+      data[offset + 3]
+    ) >>> 0;
+
+    if (offset + 12 + length > data.length) break;
+
+    const typeBytes = data.subarray(offset + 4, offset + 8);
+    const typeStr = String.fromCharCode(...typeBytes);
+
+    if (typeStr === 'IEND') {
+      iendStart = offset;
+      break;
+    }
+
+    offset += 12 + length;
+  }
+
+  if (iendStart === -1) {
+    throw new Error('IEND chunk not found');
+  }
+
+  // 首先移除已存在的同名 tEXt 块
+  let cleanedData = removePNGTextChunk(data, keyword);
+  
+  // 重新找到 IEND 位置
+  offset = 8;
+  iendStart = -1;
+  while (offset <= cleanedData.length - 12) {
+    const length = (
+      (cleanedData[offset] << 24) |
+      (cleanedData[offset + 1] << 16) |
+      (cleanedData[offset + 2] << 8) |
+      cleanedData[offset + 3]
+    ) >>> 0;
+
+    if (offset + 12 + length > cleanedData.length) break;
+
+    const typeBytes = cleanedData.subarray(offset + 4, offset + 8);
+    const typeStr = String.fromCharCode(...typeBytes);
+
+    if (typeStr === 'IEND') {
+      iendStart = offset;
+      break;
+    }
+
+    offset += 12 + length;
+  }
+
+  if (iendStart === -1) {
+    throw new Error('IEND chunk not found after cleanup');
+  }
+
+  // 构造 tEXt chunk
+  // tEXt 格式: keyword + null separator + text
+  const keywordBytes = new TextEncoder().encode(keyword);
+  const textBytes = new TextEncoder().encode(text);
+  const chunkData = new Uint8Array(keywordBytes.length + 1 + textBytes.length);
+  chunkData.set(keywordBytes, 0);
+  chunkData[keywordBytes.length] = 0; // null separator
+  chunkData.set(textBytes, keywordBytes.length + 1);
+
+  // Chunk type "tEXt"
+  const chunkType = new Uint8Array([0x74, 0x45, 0x58, 0x74]); // 'tEXt'
+
+  // 计算 CRC32 over "tEXt" + chunkData
+  const crcBuffer = new Uint8Array(chunkType.length + chunkData.length);
+  crcBuffer.set(chunkType, 0);
+  crcBuffer.set(chunkData, chunkType.length);
+  const crc = crc32(crcBuffer);
+
+  // 构造完整的 tEXt chunk
+  const chunkLength = new Uint8Array(4);
+  chunkLength[0] = (chunkData.length >> 24) & 0xff;
+  chunkLength[1] = (chunkData.length >> 16) & 0xff;
+  chunkLength[2] = (chunkData.length >> 8) & 0xff;
+  chunkLength[3] = chunkData.length & 0xff;
+
+  const crcBytes = new Uint8Array(4);
+  crcBytes[0] = (crc >> 24) & 0xff;
+  crcBytes[1] = (crc >> 16) & 0xff;
+  crcBytes[2] = (crc >> 8) & 0xff;
+  crcBytes[3] = crc & 0xff;
+
+  const textChunk = new Uint8Array(4 + 4 + chunkData.length + 4);
+  textChunk.set(chunkLength, 0);
+  textChunk.set(chunkType, 4);
+  textChunk.set(chunkData, 8);
+  textChunk.set(crcBytes, 8 + chunkData.length);
+
+  // 插入到 IEND 之前
+  const result = new Uint8Array(cleanedData.length + textChunk.length);
+  result.set(cleanedData.subarray(0, iendStart), 0);
+  result.set(textChunk, iendStart);
+  result.set(cleanedData.subarray(iendStart), iendStart + textChunk.length);
+
+  return result;
+}
+
+/**
+ * 从 PNG 中移除指定关键字的 tEXt 块
+ * @param data PNG 二进制数据
+ * @param keyword 要移除的关键字
+ * @returns 修改后的 PNG 数据
+ */
+export function removePNGTextChunk(data: Uint8Array, keyword: string): Uint8Array {
+  if (data.length < 8) return data;
+
+  // 验证 PNG 签名
+  const pngSignature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  for (let i = 0; i < 8; i++) {
+    if (data[i] !== pngSignature[i]) {
+      return data;
+    }
+  }
+
+  const chunks: { start: number; length: number; type: string; keyword?: string }[] = [];
+  let offset = 8;
+
+  while (offset <= data.length - 12) {
+    const length = (
+      (data[offset] << 24) |
+      (data[offset + 1] << 16) |
+      (data[offset + 2] << 8) |
+      data[offset + 3]
+    ) >>> 0;
+
+    if (offset + 12 + length > data.length) break;
+
+    const typeBytes = data.subarray(offset + 4, offset + 8);
+    const typeStr = String.fromCharCode(...typeBytes);
+
+    let chunkKeyword: string | undefined;
+    if (typeStr === 'tEXt' || typeStr === 'zTXt' || typeStr === 'iTXt') {
+      // 读取关键字（到第一个 null 字节为止）
+      const chunkDataStart = offset + 8;
+      let nullIndex = chunkDataStart;
+      while (nullIndex < chunkDataStart + length && data[nullIndex] !== 0) {
+        nullIndex++;
+      }
+      chunkKeyword = new TextDecoder().decode(data.subarray(chunkDataStart, nullIndex));
+    }
+
+    chunks.push({
+      start: offset,
+      length: 12 + length,
+      type: typeStr,
+      keyword: chunkKeyword
+    });
+
+    offset += 12 + length;
+  }
+
+  // 过滤掉匹配关键字的 tEXt 块
+  const chunksToKeep = chunks.filter(chunk => {
+    if ((chunk.type === 'tEXt' || chunk.type === 'zTXt' || chunk.type === 'iTXt') && chunk.keyword === keyword) {
+      return false;
+    }
+    return true;
+  });
+
+  // 如果没有移除任何块，返回原始数据
+  if (chunksToKeep.length === chunks.length) {
+    return data;
+  }
+
+  // 重新构建 PNG
+  const totalLength = 8 + chunksToKeep.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  result.set(pngSignature, 0);
+
+  let writeOffset = 8;
+  for (const chunk of chunksToKeep) {
+    result.set(data.subarray(chunk.start, chunk.start + chunk.length), writeOffset);
+    writeOffset += chunk.length;
+  }
+
+  return result;
+}
+
+/**
+ * 从 PNG 中读取指定关键字的 tEXt 块数据
+ * @param data PNG 二进制数据
+ * @param keyword 要读取的关键字
+ * @returns 文本数据，如果未找到则返回 null
+ */
+export function readPNGTextChunk(data: Uint8Array, keyword: string): string | null {
+  if (data.length < 8) return null;
+
+  // 验证 PNG 签名
+  const pngSignature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  for (let i = 0; i < 8; i++) {
+    if (data[i] !== pngSignature[i]) {
+      return null;
+    }
+  }
+
+  let offset = 8;
+
+  while (offset <= data.length - 12) {
+    const length = (
+      (data[offset] << 24) |
+      (data[offset + 1] << 16) |
+      (data[offset + 2] << 8) |
+      data[offset + 3]
+    ) >>> 0;
+
+    if (offset + 12 + length > data.length) break;
+
+    const typeBytes = data.subarray(offset + 4, offset + 8);
+    const typeStr = String.fromCharCode(...typeBytes);
+
+    if (typeStr === 'tEXt') {
+      const chunkDataStart = offset + 8;
+      const chunkDataEnd = chunkDataStart + length;
+      
+      // 找到关键字结束位置（null 字节）
+      let nullIndex = chunkDataStart;
+      while (nullIndex < chunkDataEnd && data[nullIndex] !== 0) {
+        nullIndex++;
+      }
+      
+      const chunkKeyword = new TextDecoder().decode(data.subarray(chunkDataStart, nullIndex));
+      
+      if (chunkKeyword === keyword && nullIndex < chunkDataEnd) {
+        // 读取文本数据（null 字节之后）
+        const textData = data.subarray(nullIndex + 1, chunkDataEnd);
+        return new TextDecoder().decode(textData);
+      }
+    }
+
+    offset += 12 + length;
+  }
+
+  return null;
+}
+
+/**
+ * 从 PNG data URL 中读取思维导图数据
+ * @param dataUrl PNG 图片的 data URL
+ * @returns 思维导图数据对象，如果未找到则返回 null
+ */
+export function readMindMapDataFromPNG(dataUrl: string): { mindMapData: any; mindMapConfig: any } | null {
+  if (!dataUrl.startsWith('data:image/png;base64,')) {
+    return null;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    const binaryArray = base64ToArray(base64);
+    const textData = readPNGTextChunk(binaryArray, 'mindmap');
+    
+    if (!textData) {
+      return null;
+    }
+
+    const parsed = JSON.parse(textData);
+    return {
+      mindMapData: parsed.mindMapData || null,
+      mindMapConfig: parsed.mindMapConfig || null
+    };
+  } catch (e) {
+    console.error('Failed to read mindmap data from PNG:', e);
+    return null;
+  }
+}
+
+/**
+ * 将思维导图数据写入 PNG data URL
+ * @param dataUrl PNG 图片的 data URL
+ * @param mindMapData 思维导图节点数据
+ * @param mindMapConfig 思维导图配置数据
+ * @returns 带有元数据的新 data URL
+ */
+export function writeMindMapDataToPNG(dataUrl: string, mindMapData: any, mindMapConfig: any): string {
+  if (!dataUrl.startsWith('data:image/png;base64,')) {
+    return dataUrl;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    let binaryArray = base64ToArray(base64);
+    
+    const textData = JSON.stringify({
+      mindMapData: mindMapData,
+      mindMapConfig: mindMapConfig
+    });
+    
+    binaryArray = insertPNGTextChunk(binaryArray, 'mindmap', textData);
+    
+    const newBase64 = arrayToBase64(binaryArray);
+    return `data:image/png;base64,${newBase64}`;
+  } catch (e) {
+    console.error('Failed to write mindmap data to PNG:', e);
+    return dataUrl;
+  }
+}
+
+/**
+ * 检查 PNG 是否包含思维导图数据
+ * @param dataUrl PNG 图片的 data URL
+ * @returns 是否包含思维导图数据
+ */
+export function hasMindMapDataInPNG(dataUrl: string): boolean {
+  if (!dataUrl.startsWith('data:image/png;base64,')) {
+    return false;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    const binaryArray = base64ToArray(base64);
+    const textData = readPNGTextChunk(binaryArray, 'mindmap');
+    return textData !== null;
+  } catch (e) {
+    return false;
+  }
+}
+
+// --- SVG 元数据操作函数 ---
+
+/**
+ * 从 SVG data URL 中读取思维导图数据
+ * 数据存储在 <metadata> 标签的 <mindmap> 子元素中，使用 base64 编码的 JSON
+ * @param dataUrl SVG 图片的 data URL
+ * @returns 思维导图数据对象，如果未找到则返回 null
+ */
+export function readMindMapDataFromSVG(dataUrl: string): { mindMapData: any; mindMapConfig: any } | null {
+  if (!dataUrl.startsWith('data:image/svg+xml;base64,')) {
+    return null;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    const svgContent = base64ToUnicode(base64);
+    
+    // 从 <metadata><mindmap> 标签中读取
+    const metadataMatch = svgContent.match(/<metadata[^>]*>[\s\S]*?<mindmap[^>]*>([^<]+)<\/mindmap>[\s\S]*?<\/metadata>/i);
+    if (metadataMatch && metadataMatch[1]) {
+      const base64Data = metadataMatch[1].trim();
+      const jsonStr = base64ToUnicode(base64Data);
+      const parsed = JSON.parse(jsonStr);
+      return {
+        mindMapData: parsed.mindMapData || null,
+        mindMapConfig: parsed.mindMapConfig || null
+      };
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('Failed to read mindmap data from SVG:', e);
+    return null;
+  }
+}
+
+/**
+ * 将思维导图数据写入 SVG data URL
+ * 数据存储在 <metadata> 标签的 <mindmap> 子元素中，使用 base64 编码的 JSON
+ * @param dataUrl SVG 图片的 data URL
+ * @param mindMapData 思维导图节点数据
+ * @param mindMapConfig 思维导图配置数据
+ * @returns 带有元数据的新 data URL
+ */
+export function writeMindMapDataToSVG(dataUrl: string, mindMapData: any, mindMapConfig: any): string {
+  if (!dataUrl.startsWith('data:image/svg+xml;base64,')) {
+    return dataUrl;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    let svgContent = base64ToUnicode(base64);
+    
+    // 准备要写入的数据
+    const dataToEmbed = JSON.stringify({
+      mindMapData: mindMapData,
+      mindMapConfig: mindMapConfig
+    });
+    const base64Data = unicodeToBase64(dataToEmbed);
+    
+    // 移除旧的 metadata 中的 mindmap 标签（如果存在）
+    svgContent = svgContent.replace(/<metadata[^>]*>[\s\S]*?<mindmap[^>]*>[^<]*<\/mindmap>[\s\S]*?<\/metadata>/gi, '');
+    
+    // 创建新的 metadata 内容
+    const metadataContent = `<metadata><mindmap>${base64Data}</mindmap></metadata>`;
+    
+    // 在 <svg> 开标签之后插入 metadata
+    const svgTagMatch = svgContent.match(/<svg[^>]*>/);
+    if (svgTagMatch) {
+      const insertPos = svgTagMatch.index! + svgTagMatch[0].length;
+      svgContent = svgContent.slice(0, insertPos) + metadataContent + svgContent.slice(insertPos);
+    }
+    
+    const newBase64 = unicodeToBase64(svgContent);
+    return `data:image/svg+xml;base64,${newBase64}`;
+  } catch (e) {
+    console.error('Failed to write mindmap data to SVG:', e);
+    return dataUrl;
+  }
+}
+
+/**
+ * 检查 SVG 是否包含思维导图数据
+ * @param dataUrl SVG 图片的 data URL
+ * @returns 是否包含思维导图数据
+ */
+export function hasMindMapDataInSVG(dataUrl: string): boolean {
+  if (!dataUrl.startsWith('data:image/svg+xml;base64,')) {
+    return false;
+  }
+
+  try {
+    const base64 = dataUrl.split(',')[1];
+    const svgContent = base64ToUnicode(base64);
+    
+    // 检查 metadata/mindmap
+    if (/<metadata[^>]*>[\s\S]*?<mindmap[^>]*>[^<]+<\/mindmap>/i.test(svgContent)) {
+      return true;
+    }
+    
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
