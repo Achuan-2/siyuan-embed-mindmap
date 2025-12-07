@@ -6,6 +6,8 @@ Type `/mindmap`, `/脑图`, or `/思绪思维导图` to create an image and open
 
 <img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-4bd6dc62-5425-4f5d-92da-f250d4b2acd8-20251204205949-w7j1nie.png" />
 
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207103332-2025-12-07.png)
+
 > ⚠️ Important Note: Currently, the ability to re-edit images is implemented by storing mind map data in custom block attributes. If the custom block attributes are deleted or modified, the mind map data may be lost and re-editing will not be possible.
 
 > ❓ Why not save the mind map file directly and choose to automatically save as an image each time you edit?

@@ -1,6 +1,8 @@
+这是一款思源笔记的思维导图插件，自动保存思维导图为图片，支持图片二次编辑，支持导图与块绑定获取笔记内容、支持文档大纲、文档内容、文档树转导图
+
 ## 1 📖 使用
 
-输入 `/mindmap`或 `/脑图`或 `/思绪思维导图`,创建图片并打开思维导图编辑器，编辑完成后点击保存即可。
+输入 `/mindmap`或 `/脑图`或 `/思绪思维导图`，创建图片并打开思维导图编辑器，编辑完成后点击保存即可。
 
 <img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-b6f2eee6-7954-4ecf-a53a-b19174ce0d30-20251204205852-56pdg0z.png" style="width: 1906px;" />
 
@@ -18,9 +20,32 @@
 
 本插件对Markdown粘贴做了很多优化
 
-- 顶栏添加了粘贴Markdown按钮，迅速把Markdown转为思维导图，也可以选择某个节点粘贴Markdown为子节点，支持标题和列表混排解析，支持导入加粗、斜体、超链接等markdown富文本样式
-- 粘贴markdown支持解析思源图片、这样思源笔记的图文笔记可以迅速转为思维导图。支持解析思源笔记的块引用和块链接，迅速添加带跳转链接的节点
-- 支持脑图大纲复制为Markdown多级列表
+- 顶栏添加了粘贴Markdown按钮，迅速把Markdown转为思维导图，也可以选择某个节点粘贴Markdown为子节点
+- 解析层级优化：
+  - 支持标题和列表混排解析
+  - 段落后的列表识别为段落的子节点
+- 解析支持富文本：支持导入加粗、斜体、超链接等markdown富文本样式
+- 解析支持思源图片和块引用、块链接：粘贴markdown支持解析思源图片，这样思源笔记的图文笔记可以迅速转为思维导图。支持解析思源笔记的块引用和块链接，迅速添加带跳转链接的节点
+
+下图为思源文档内容一键转导图的解析效果
+
+![img](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207102747-2025-12-07.png)
+
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/1765074382465-2025-12-07.png)
+
+## 2.2 支持复制为Markdown
+
+节点右键支持复制为Markdown
+
+复制Markdown会把节点转列表，支持保留如下样式
+
+* 加粗
+* 下划线
+* 斜体
+* 删除线
+* 行内链接和节点链接（节点链接是末尾添加🔗）
+
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207102316-2025-12-07.png)
 
 ### 2.2 笔记转导图
 
@@ -52,14 +77,12 @@
 
 <img alt="思维导图悬浮预览" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E6%80%9D%E7%BB%B4%E5%AF%BC%E5%9B%BE%E6%82%AC%E6%B5%AE%E9%A2%84%E8%A7%88-20251205103903-64rv9e5.gif" />
 
-### 2.4 支持文档树内容显示
-
+### 2.4 支持文档树转导图
 
 笔记转导图功能支持输入笔记本id或者文档id，获取子文档树结构
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251206201628-2025-12-06.png)
 
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251206201639-2025-12-06.png)
-
 
 文档树也有菜单可以直接显示文档树结构
 
@@ -67,7 +90,7 @@
 
 ## 3 ⚙️ 插件设置概览
 
-<img alt="image" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/network-asset-c2be3dfa-54aa-48e2-bf28-ae6e7df1bef3-20251204205959-gwpbfmn.png" style="width: 1121px;" />
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207101930-2025-12-07.png)
 
 ## 4 📦 开发
 
