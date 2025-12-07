@@ -19,6 +19,8 @@
   "themeConfigDescription": "Custom theme config for new mind maps (JSON format), see <a href='https://wanglin2.github.io/mind-map-docs/course/course10.html#%E4%B8%BB%E9%A2%98' target='_blank'>Theme Documentation</a>",
   "defaultRainbowLines": "Default Rainbow Lines",
   "defaultRainbowLinesDescription": "Default rainbow lines style for new mind maps",
+  "globalMindmapSetting": "Global Mindmap Setting",
+  "globalMindmapSettingDescription": "Global default mindmap configuration (JSON format), lower priority than block attribute settings, see <a href='https://wanglin2.github.io/mind-map-docs/course/course10.html#%E4%B8%BB%E9%A2%98' target='_blank'>Theme Documentation</a>",
   "openInTab": "Open in Tab",
   "docTreeToMindmap": "Doc Tree to Mindmap",
   "tempMindmapTip": "Temporary preview mode: Editable but won't auto-save, please use export to save your changes"

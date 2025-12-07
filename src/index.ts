@@ -282,6 +282,17 @@ export default class MindmapPlugin extends Plugin {
         console.warn('Theme config JSON parse error, using default config');
         this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
       }
+
+      // 验证并保存全局思维导图设置
+      const globalMindmapSettingValue = (dialog.element.querySelector("[data-type='globalMindmapSetting']") as HTMLTextAreaElement).value;
+      try {
+        JSON.parse(globalMindmapSettingValue); // 验证JSON格式
+        this.data[STORAGE_NAME].globalMindmapSetting = globalMindmapSettingValue;
+      } catch (e) {
+        // JSON格式错误时使用默认配置
+        console.warn('Global mindmap setting JSON parse error, using default config');
+        this.data[STORAGE_NAME].globalMindmapSetting = '{}';
+      }
       
       this.saveData(STORAGE_NAME, this.data[STORAGE_NAME]);
       dialog.destroy();
@@ -454,6 +465,7 @@ export default class MindmapPlugin extends Plugin {
     if (typeof this.data[STORAGE_NAME].defaultTheme === 'undefined') this.data[STORAGE_NAME].defaultTheme = 'lemonBubbles';
     if (typeof this.data[STORAGE_NAME].themeConfig === 'undefined') this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
     if (typeof this.data[STORAGE_NAME].defaultRainbowLines === 'undefined') this.data[STORAGE_NAME].defaultRainbowLines = 'none';
+    if (typeof this.data[STORAGE_NAME].globalMindmapSetting === 'undefined') this.data[STORAGE_NAME].globalMindmapSetting = '{}';
 
     this.settingItems = [
       {
@@ -602,6 +614,21 @@ export default class MindmapPlugin extends Plugin {
           container.appendChild(hiddenInput);
           
           return container;
+        },
+      },
+      {
+        title: this.i18n.globalMindmapSetting,
+        direction: "row",
+        description: this.i18n.globalMindmapSettingDescription,
+        createActionElement: () => {
+          const textarea = document.createElement("textarea");
+          textarea.className = "b3-text-field fn__block";
+          textarea.setAttribute("data-type", "globalMindmapSetting");
+          textarea.style.height = "200px";
+          textarea.style.fontFamily = "monospace";
+          textarea.style.resize = "vertical";
+          textarea.value = this.data[STORAGE_NAME].globalMindmapSetting || '{}';
+          return textarea;
         },
       }
     ];
@@ -753,13 +780,25 @@ export default class MindmapPlugin extends Plugin {
         rainbowLinesConfig: rainbowLinesConfig
       };
       console.log('Initial mindmap config:', initialConfig);
+      
+      // 分离保存配置
+      const attrs: any = { 'custom-mindmap': JSON.stringify(initial) };
+      
+      // 保存彩虹线条配置到单独的属性
+      if (rainbowLinesConfig) {
+        attrs['custom-mindmap-rainbowLinesConfig'] = JSON.stringify(rainbowLinesConfig);
+      }
+      
+      // 如果有其他配置，保存到custom-mindmap-setting
+      const { rainbowLinesConfig: _, ...otherConfig } = initialConfig;
+      if (Object.keys(otherConfig).length > 0) {
+        attrs['custom-mindmap-setting'] = JSON.stringify(otherConfig);
+      }
+      
       try {
         await fetchSyncPost('/api/attr/setBlockAttrs', { 
           id: blockID, 
-          attrs: { 
-            'custom-mindmap': JSON.stringify(initial),
-            'custom-mindmap-setting': JSON.stringify(initialConfig)
-          } 
+          attrs: attrs
         });
       } catch (err) { }
 
@@ -1239,6 +1278,14 @@ export default class MindmapPlugin extends Plugin {
             }
           }
 
+          // 合并全局思维导图设置
+          let globalMindmapConfig = {};
+          try {
+            globalMindmapConfig = JSON.parse(this.data[STORAGE_NAME].globalMindmapSetting || '{}');
+          } catch (e) {
+            globalMindmapConfig = {};
+          }
+
           iframe.contentWindow.postMessage(JSON.stringify({
             event: 'init_data',
             mindMapData: {
@@ -1253,6 +1300,7 @@ export default class MindmapPlugin extends Plugin {
               view: null
             },
             mindMapConfig: {
+              ...globalMindmapConfig,
               rainbowLinesConfig: rainbowLinesConfig
               // 移除 readonly 限制，允许编辑
             },
@@ -1387,12 +1435,42 @@ export default class MindmapPlugin extends Plugin {
                   mindMapData = JSON.parse(resp.data['custom-mindmap']);
                 } catch (e) { mindMapData = null; }
               }
-              // 从 custom-mindmap-setting 中读取配置（包含彩虹线条、水印等配置）
+              // 整合思维导图配置：全局设置 + 块属性设置 + 彩虹线条设置
               let mindMapConfig = {};
+              // 1. 先加载全局设置作为基础
+              try {
+                mindMapConfig = JSON.parse(that.data[STORAGE_NAME].globalMindmapSetting || '{}');
+              } catch (e) { mindMapConfig = {}; }
+              
+              // 2. 加载块属性设置（非彩虹线条）
               if (resp && resp.data && resp.data['custom-mindmap-setting']) {
                 try {
-                  mindMapConfig = JSON.parse(resp.data['custom-mindmap-setting']);
-                } catch (e) { mindMapConfig = {}; }
+                  const blockConfig = JSON.parse(resp.data['custom-mindmap-setting']);
+                  mindMapConfig = { ...mindMapConfig, ...blockConfig };
+                } catch (e) { /* 忽略解析错误 */ }
+              }
+              
+              // 3. 加载彩虹线条设置
+              if (resp && resp.data && resp.data['custom-mindmap-rainbowLinesConfig']) {
+                try {
+                  const rainbowConfig = JSON.parse(resp.data['custom-mindmap-rainbowLinesConfig']);
+                  mindMapConfig = { ...mindMapConfig, rainbowLinesConfig: rainbowConfig };
+                } catch (e) { /* 忽略解析错误 */ }
+              } else {
+                // 如果块属性没有彩虹线条配置，使用插件设置的默认彩虹线条
+                const defaultRainbowLines = that.data[STORAGE_NAME].defaultRainbowLines || 'none';
+                if (defaultRainbowLines !== 'none') {
+                  const rainbowOption = that.RAINBOW_LINES_OPTIONS.find(opt => opt.value === defaultRainbowLines);
+                  if (rainbowOption && rainbowOption.list) {
+                    mindMapConfig = { 
+                      ...mindMapConfig, 
+                      rainbowLinesConfig: {
+                        open: true,
+                        colorsList: rainbowOption.list
+                      }
+                    };
+                  }
+                }
               }
               postMessage({
                 event: 'init_data',
@@ -1459,15 +1537,27 @@ export default class MindmapPlugin extends Plugin {
         }
 
         const onSaveConfig = async (message: any) => {
-          // 保存思维导图配置（如彩虹线条、水印等配置）到块属性的 custom-mindmap-setting 中
+          // 保存思维导图配置，将彩虹线条配置分离保存
           try {
             const config = message.config || null;
             if (imageInfo.blockID && config) {
-              // 直接保存配置到 custom-mindmap-setting
-              await fetchSyncPost('/api/attr/setBlockAttrs', { 
-                id: imageInfo.blockID, 
-                attrs: { 'custom-mindmap-setting': JSON.stringify(config) } 
-              });
+              const { rainbowLinesConfig, ...otherConfig } = config;
+              
+              // 保存非彩虹线条配置到 custom-mindmap-setting
+              if (Object.keys(otherConfig).length > 0) {
+                await fetchSyncPost('/api/attr/setBlockAttrs', { 
+                  id: imageInfo.blockID, 
+                  attrs: { 'custom-mindmap-setting': JSON.stringify(otherConfig) } 
+                });
+              }
+              
+              // 保存彩虹线条配置到 custom-mindmap-rainbowLinesConfig
+              if (rainbowLinesConfig) {
+                await fetchSyncPost('/api/attr/setBlockAttrs', { 
+                  id: imageInfo.blockID, 
+                  attrs: { 'custom-mindmap-rainbowLinesConfig': JSON.stringify(rainbowLinesConfig) } 
+                });
+              }
             }
           } catch (err) {
             console.error('Save config error:', err);
@@ -1642,6 +1732,14 @@ export default class MindmapPlugin extends Plugin {
                 }
               }
 
+              // 合并全局思维导图设置
+              let globalMindmapConfig = {};
+              try {
+                globalMindmapConfig = JSON.parse(that.data[STORAGE_NAME].globalMindmapSetting || '{}');
+              } catch (e) {
+                globalMindmapConfig = {};
+              }
+
               postMessage({
                 event: 'init_data',
                 mindMapData: {
@@ -1656,6 +1754,7 @@ export default class MindmapPlugin extends Plugin {
                   view: null
                 },
                 mindMapConfig: {
+                  ...globalMindmapConfig,
                   rainbowLinesConfig: rainbowLinesConfig
                   // 可编辑但不自动保存
                 },
@@ -1787,12 +1886,42 @@ export default class MindmapPlugin extends Plugin {
               mindMapData = JSON.parse(resp.data['custom-mindmap']);
             } catch (e) { mindMapData = null; }
           }
-          // 从 custom-mindmap-setting 中读取配置（包含彩虹线条、水印等配置）
+          // 整合思维导图配置：全局设置 + 块属性设置 + 彩虹线条设置
           let mindMapConfig = {};
+          // 1. 先加载全局设置作为基础
+          try {
+            mindMapConfig = JSON.parse(this.data[STORAGE_NAME].globalMindmapSetting || '{}');
+          } catch (e) { mindMapConfig = {}; }
+          
+          // 2. 加载块属性设置（非彩虹线条）
           if (resp && resp.data && resp.data['custom-mindmap-setting']) {
             try {
-              mindMapConfig = JSON.parse(resp.data['custom-mindmap-setting']);
-            } catch (e) { mindMapConfig = {}; }
+              const blockConfig = JSON.parse(resp.data['custom-mindmap-setting']);
+              mindMapConfig = { ...mindMapConfig, ...blockConfig };
+            } catch (e) { /* 忽略解析错误 */ }
+          }
+          
+          // 3. 加载彩虹线条设置
+          if (resp && resp.data && resp.data['custom-mindmap-rainbowLinesConfig']) {
+            try {
+              const rainbowConfig = JSON.parse(resp.data['custom-mindmap-rainbowLinesConfig']);
+              mindMapConfig = { ...mindMapConfig, rainbowLinesConfig: rainbowConfig };
+            } catch (e) { /* 忽略解析错误 */ }
+          } else {
+            // 如果块属性没有彩虹线条配置，使用插件设置的默认彩虹线条
+            const defaultRainbowLines = this.data[STORAGE_NAME].defaultRainbowLines || 'none';
+            if (defaultRainbowLines !== 'none') {
+              const rainbowOption = this.RAINBOW_LINES_OPTIONS.find(opt => opt.value === defaultRainbowLines);
+              if (rainbowOption && rainbowOption.list) {
+                mindMapConfig = { 
+                  ...mindMapConfig, 
+                  rainbowLinesConfig: {
+                    open: true,
+                    colorsList: rainbowOption.list
+                  }
+                };
+              }
+            }
           }
           postMessage({
             event: 'init_data',
@@ -1863,15 +1992,27 @@ export default class MindmapPlugin extends Plugin {
     }
 
     const onSaveConfig = async (message: any) => {
-      // 保存思维导图配置（如彩虹线条、水印等配置）到块属性的 custom-mindmap-setting 中
+      // 保存思维导图配置，将彩虹线条配置分离保存
       try {
         const config = message.config || null;
         if (imageInfo.blockID && config) {
-          // 直接保存配置到 custom-mindmap-setting
-          await fetchSyncPost('/api/attr/setBlockAttrs', { 
-            id: imageInfo.blockID, 
-            attrs: { 'custom-mindmap-setting': JSON.stringify(config) } 
-          });
+          const { rainbowLinesConfig, ...otherConfig } = config;
+          
+          // 保存非彩虹线条配置到 custom-mindmap-setting
+          if (Object.keys(otherConfig).length > 0) {
+            await fetchSyncPost('/api/attr/setBlockAttrs', { 
+              id: imageInfo.blockID, 
+              attrs: { 'custom-mindmap-setting': JSON.stringify(otherConfig) } 
+            });
+          }
+          
+          // 保存彩虹线条配置到 custom-mindmap-rainbowLinesConfig
+          if (rainbowLinesConfig) {
+            await fetchSyncPost('/api/attr/setBlockAttrs', { 
+              id: imageInfo.blockID, 
+              attrs: { 'custom-mindmap-rainbowLinesConfig': JSON.stringify(rainbowLinesConfig) } 
+            });
+          }
         }
       } catch (err) {
         console.error('Save config error:', err);
