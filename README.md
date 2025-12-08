@@ -106,8 +106,12 @@
 
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207114229-2025-12-07.png)
 
-块菜单也可以单选或者多选块转导图
+文档块右键菜单可以选择文档大纲和文档内容转导图
 
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251208095812-2025-12-08.png)
+
+块菜单右键菜单也可以单选或者多选块转导图
+![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251208095725-2025-12-08.png)
 
 ### 2.6 导出的图片可再导入
 
