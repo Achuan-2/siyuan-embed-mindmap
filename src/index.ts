@@ -30,7 +30,7 @@ import {
 } from "./utils";
 import { matchHotKey } from "./utils/hotkey";
 import defaultImageContent from "@/default.json";
-import { importOutline, importDocTree } from "../mind-map/web/src/utils/noteImport";
+import { importOutline, importDocTree, importContent } from "../mind-map/web/src/utils/noteImport";
 
 let PluginInfo = {
   version: '',
@@ -66,6 +66,7 @@ export default class MindmapPlugin extends Plugin {
   private _mouseoverHandler;
   private _openMenuDoctreeHandler;
   private _clickEditorTitleIconHandler;
+  private _clickBlockIconHandler;
 
   private settingItems: SettingItem[];
   public EDIT_TAB_TYPE = "mindmap-edit-tab";
@@ -181,6 +182,10 @@ export default class MindmapPlugin extends Plugin {
     this._clickEditorTitleIconHandler = this.handleDocumentMenu.bind(this);
     this.eventBus.on('click-editortitleicon', this._clickEditorTitleIconHandler);
 
+    // 监听块图标点击以添加块级菜单（内容转导图）
+    this._clickBlockIconHandler = this.handleBlockMenu.bind(this);
+    this.eventBus.on('click-blockicon', this._clickBlockIconHandler);
+
     this._globalKeyDownHandler = this.globalKeyDownHandler.bind(this);
     document.documentElement.addEventListener("keydown", this._globalKeyDownHandler);
 
@@ -192,6 +197,7 @@ export default class MindmapPlugin extends Plugin {
     if (this._openMenuImageHandler) this.eventBus.off("open-menu-image", this._openMenuImageHandler);
     if (this._openMenuDoctreeHandler) this.eventBus.off("open-menu-doctree", this._openMenuDoctreeHandler);
     if (this._clickEditorTitleIconHandler) this.eventBus.off('click-editortitleicon', this._clickEditorTitleIconHandler);
+    if (this._clickBlockIconHandler) this.eventBus.off('click-blockicon', this._clickBlockIconHandler);
     if (this._globalKeyDownHandler) document.documentElement.removeEventListener("keydown", this._globalKeyDownHandler);
     if (this._mouseoverHandler) document.removeEventListener('mouseover', this._mouseoverHandler);
     this.reloadAllEditor();
@@ -1104,6 +1110,136 @@ export default class MindmapPlugin extends Plugin {
       });
     } catch (err) {
       console.error('handleDocumentMenu error:', err);
+    }
+  }
+
+  // 为块图标（块右键菜单）添加“内容转导图”菜单项，支持多选块
+  private handleBlockMenu({ detail }) {
+    try {
+      const menu = detail?.menu;
+      if (!menu) return;
+
+      const singleLabel = '内容转导图';
+      const batchLabel = '批量内容转导图';
+
+      menu.addItem({
+        icon: 'iconSimpleMindmap',
+        label: (detail.blockElements && detail.blockElements.length > 1) ? `${batchLabel} (${detail.blockElements.length})` : singleLabel,
+        click: async () => {
+          try {
+            // 优先使用 detail.blockElements（可多选）
+            if (detail.blockElements && detail.blockElements.length > 0) {
+              const blockIds = detail.blockElements
+                .map((el: Element) => (el as HTMLElement).getAttribute('data-node-id'))
+                .filter((id: string | null) => !!id) as string[];
+
+              if (blockIds.length === 0) {
+                new Dialog({ title: '错误', content: `<div class="b3-dialog__content">无法获取到块 ID</div>`, width: '360px' });
+                return;
+              }
+
+              if (blockIds.length === 1) {
+                this.showBlockContentMindmap(blockIds[0]);
+              } else {
+                await this.showBlocksContentMindmap(blockIds);
+              }
+              return;
+            }
+
+          } catch (err) {
+            console.error('click-blockicon handler click error:', err);
+            new Dialog({ title: '错误', content: `<div class="b3-dialog__content">${err.message || '操作失败'}</div>`, width: '360px' });
+          }
+        }
+      });
+    } catch (err) {
+      console.error('handleBlockMenu error:', err);
+    }
+  }
+
+  // 将多个块的内容导入为思维导图并展示（合并多个块）
+  private async showBlocksContentMindmap(blockIds: string[]) {
+    const loadingDialog = new Dialog({
+      title: this.i18n?.batchBlockContentToMindmap || '批量内容转导图',
+      content: `<div class="b3-dialog__content" style="text-align: center; padding: 40px;">\n        <div class="fn__loading"><svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg></div>\n        <div style="margin-top: 16px;">正在生成合并块内容思维导图...</div>\n      </div>`,
+      width: "480px",
+    });
+
+    try {
+      if (!blockIds || blockIds.length === 0) throw new Error('无法获取块 ID 列表');
+
+      // 使用 importContent 生成合并的思维导图数据
+      const combined = await importContent(blockIds.join(','), { content: '合并内容', name: '合并内容' }, 0, '');
+
+      loadingDialog.destroy();
+
+      const blockSettings = {
+        blockId: blockIds.join(','),
+        importType: 'content',
+        autoNumber: false,
+        maxLevel: 0,
+        autoRefresh: false,
+        isNotebook: false
+      };
+
+      if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
+        this.openTempMindmapTab(combined, this.i18n?.combinedBlocksTitle || '合并内容', blockSettings);
+      } else {
+        this.openTempMindmapDialog(combined, blockSettings);
+      }
+    } catch (error) {
+      console.error('生成合并块内容思维导图失败:', error);
+      loadingDialog.destroy();
+      new Dialog({ title: '错误', content: `<div class="b3-dialog__content">${error.message || '生成失败'}</div>`, width: '400px' });
+    }
+  }
+
+  // 将指定块的内容导入为思维导图并展示（块级内容）
+  private async showBlockContentMindmap(blockId: string) {
+    const loadingDialog = new Dialog({
+      title: this.i18n?.blockContentToMindmap || '内容转导图',
+      content: `<div class="b3-dialog__content" style="text-align: center; padding: 40px;">\n        <div class="fn__loading"><svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg></div>\n        <div style="margin-top: 16px;">正在生成块内容思维导图...</div>\n      </div>`,
+      width: "400px",
+    });
+
+    try {
+      if (!blockId) throw new Error('无法获取块 ID');
+
+      const blockRes = await fetchSyncPost('/api/query/sql', {
+        stmt: `SELECT box, path, content, name FROM blocks WHERE id = '${blockId}'`
+      });
+
+      if (!blockRes || blockRes.code !== 0 || !blockRes.data || blockRes.data.length === 0) {
+        throw new Error('无法获取块信息');
+      }
+
+      const blockInfo = blockRes.data[0];
+
+      // 使用 importContent 来生成思维导图数据
+      const mindmapRoot = await importContent(blockId, blockInfo, 0, '');
+
+      const plainTitle = (blockInfo.content || blockInfo.name || '内容').replace(/<[^>]+>/g, '').trim();
+
+      const blockSettings = {
+        blockId: blockId,
+        importType: 'content',
+        autoNumber: false,
+        maxLevel: 0,
+        autoRefresh: false,
+        isNotebook: false
+      };
+
+      loadingDialog.destroy();
+
+      if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
+        this.openTempMindmapTab(mindmapRoot, plainTitle, blockSettings);
+      } else {
+        this.openTempMindmapDialog(mindmapRoot, blockSettings);
+      }
+    } catch (error) {
+      console.error('生成块内容思维导图失败:', error);
+      loadingDialog.destroy();
+      new Dialog({ title: '错误', content: `<div class="b3-dialog__content">${error.message || '生成失败'}</div>`, width: '400px' });
     }
   }
 

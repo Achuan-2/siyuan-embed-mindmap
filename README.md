@@ -100,15 +100,19 @@
 
 <img alt="思维导图悬浮预览" src="https://fastly.jsdelivr.net/gh/Achuan-2/PicBed@pic/assets/%E6%80%9D%E7%BB%B4%E5%AF%BC%E5%9B%BE%E6%82%AC%E6%B5%AE%E9%A2%84%E8%A7%88-20251205103903-64rv9e5.gif" />
 
-### 2.5 快速查看文档树和文档大纲结构
+### 2.5 快速查看文档树、文档大纲、块结构
 
 文档树有菜单可以直接显示文档树结构和文档大纲
 
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251207114229-2025-12-07.png)
 
+块菜单也可以单选或者多选块转导图
+
+
 ### 2.6 导出的图片可再导入
 
-思维导图导出为png、svg图片时，思维导图数据会自动写入图片的元数据中，之后可以直接把图片再导入为思维导图进行编辑
+- 思维导图导出为png、svg图片时，思维导图数据会自动写入图片的元数据中，之后可以直接把图片再导入为思维导图进行编辑
+- 思维导图节点右键复制为png，图片也会包含思维导图数据，可以直接粘贴到思源笔记里再编辑
 
 **插件如何识别图片是思维导图图片**：
 
@@ -139,8 +143,8 @@
 
 ```bash
 git clone --recursive https://github.com/Achuan-2/siyuan-plugin-simplemindmap.git
-cd mind-map/web && npm run build
-cd ../.. && npm run build
+cd mind-map/web && npm install && npm run build
+cd ../.. && npm install && npm run build
 ```
 
 
