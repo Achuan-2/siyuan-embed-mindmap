@@ -110,7 +110,7 @@
 
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251208095812-2025-12-08.png)
 
-块菜单右键菜单也可以单选或者多选块转导图
+块菜单右键菜单可以单选或者多选块转导图，如果选择了标题块会自动获取标题下所有内容，如果同时选择标题块和标题的子块，则只会获取标题本身的内容
 ![](https://fastly.jsdelivr.net/gh/Achuan-2/PicBed/assets/20251208095725-2025-12-08.png)
 
 ### 2.6 导出的图片可再导入
