@@ -138,6 +138,7 @@
 如何打包插件：
 
 ```bash
+git clone --recursive https://github.com/Achuan-2/siyuan-plugin-simplemindmap.git
 cd mind-map/web && npm run build
 cd ../.. && npm run build
 ```
