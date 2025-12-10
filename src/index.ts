@@ -31,6 +31,8 @@ import {
 import { matchHotKey } from "./utils/hotkey";
 import defaultImageContent from "@/default.json";
 import { importOutline, importDocTree, importContent } from "../mind-map/web/src/utils/noteImport";
+import SettingPanel from "./SettingPanel.svelte";
+import { getDefaultSettings } from "./defaultSettings";
 
 let PluginInfo = {
   version: '',
@@ -68,7 +70,6 @@ export default class MindmapPlugin extends Plugin {
   private _clickEditorTitleIconHandler;
   private _clickBlockIconHandler;
 
-  private settingItems: SettingItem[];
   public EDIT_TAB_TYPE = "mindmap-edit-tab";
   public TEMP_TAB_TYPE = "mindmap-temp-tab";
 
@@ -208,115 +209,22 @@ export default class MindmapPlugin extends Plugin {
     this.removeData(STORAGE_NAME);
   }
 
-  openSetting() {
-    const dialogHTML = `
-<div class="b3-dialog__content"></div>
-<div class="b3-dialog__action">
-  <button class="b3-button b3-button--cancel" data-type="cancel">${window.siyuan.languages.cancel}</button>
-  <div class="fn__space"></div>
-  <button class="b3-button b3-button--text" data-type="confirm">${window.siyuan.languages.save}</button>
-</div>
-    `;
-
-    const dialog = new Dialog({
+  async openSetting() {
+    let dialog = new Dialog({
       title: this.displayName,
-      content: dialogHTML,
-      width: this.isMobile ? "92vw" : "768px",
-      height: "80vh",
-      hideCloseIcon: this.isMobile,
-    });
-
-    // 配置的处理拷贝自思源源码
-    const contentElement = dialog.element.querySelector(".b3-dialog__content");
-    this.settingItems.forEach((item) => {
-      let html = "";
-      let actionElement = item.actionElement;
-      if (!item.actionElement && item.createActionElement) {
-        actionElement = item.createActionElement();
-      }
-      const tagName = actionElement?.classList.contains("b3-switch") ? "label" : "div";
-      if (typeof item.direction === "undefined") {
-        item.direction = (!actionElement || "TEXTAREA" === actionElement.tagName) ? "row" : "column";
-      }
-      if (item.direction === "row") {
-        html = `<${tagName} class="b3-label">
-    <div class="fn__block">
-        ${item.title}
-        ${item.description ? `<div class="b3-label__text">${item.description}</div>` : ""}
-        <div class="fn__hr"></div>
-    </div>
-</${tagName}>`;
-      } else {
-        html = `<${tagName} class="fn__flex b3-label config__item">
-    <div class="fn__flex-1">
-        ${item.title}
-        ${item.description ? `<div class="b3-label__text">${item.description}</div>` : ""}
-    </div>
-    <span class="fn__space${actionElement ? "" : " fn__none"}"></span>
-</${tagName}>`;
-      }
-      contentElement.insertAdjacentHTML("beforeend", html);
-      if (actionElement) {
-        if (["INPUT", "TEXTAREA"].includes(actionElement.tagName)) {
-          dialog.bindInput(actionElement as HTMLInputElement, () => {
-            (dialog.element.querySelector(".b3-dialog__action [data-type='confirm']") as HTMLElement).dispatchEvent(new CustomEvent("click"));
-          });
-        }
-        if (item.direction === "row") {
-          contentElement.lastElementChild.lastElementChild.insertAdjacentElement("beforeend", actionElement);
-          actionElement.classList.add("fn__block");
-        } else {
-          actionElement.classList.remove("fn__block");
-          actionElement.classList.add("fn__flex-center", "fn__size200");
-          contentElement.lastElementChild.insertAdjacentElement("beforeend", actionElement);
-        }
+      content: `<div id="SettingPanel" style="height: 100%;"></div>`,
+      width: this.isMobile ? "92vw" : "800px",
+      height: this.isMobile ? "80vh" : "700px",
+      destroyCallback: () => {
+        pannel.$destroy();
       }
     });
 
-    (dialog.element.querySelector(".b3-dialog__action [data-type='cancel']") as HTMLElement).addEventListener("click", () => {
-      dialog.destroy();
-    });
-    (dialog.element.querySelector(".b3-dialog__action [data-type='confirm']") as HTMLElement).addEventListener("click", () => {
-      this.data[STORAGE_NAME].labelDisplay = (dialog.element.querySelector("[data-type='labelDisplay']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].embedImageFormat = (dialog.element.querySelector("[data-type='embedImageFormat']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].editWindow = (dialog.element.querySelector("[data-type='editWindow']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].defaultTheme = (dialog.element.querySelector("[data-type='defaultTheme']") as HTMLSelectElement).value;
-      this.data[STORAGE_NAME].defaultRainbowLines = (dialog.element.querySelector("[data-type='defaultRainbowLines']") as HTMLInputElement).value;
-      
-      // 验证并保存主题配置
-      const themeConfigValue = (dialog.element.querySelector("[data-type='themeConfig']") as HTMLTextAreaElement).value;
-      if (themeConfigValue.trim() === '') {
-        // 允许用户保存空字符串
-        this.data[STORAGE_NAME].themeConfig = '';
-      } else {
-        try {
-          JSON.parse(themeConfigValue); // 验证JSON格式
-          this.data[STORAGE_NAME].themeConfig = themeConfigValue;
-        } catch (e) {
-          // JSON格式错误时使用默认配置
-          console.warn('Theme config JSON parse error, using default config');
-          this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
-        }
+    let pannel = new SettingPanel({
+      target: dialog.element.querySelector("#SettingPanel"),
+      props: {
+        plugin: this
       }
-
-      // 验证并保存全局思维导图设置
-      const globalMindmapSettingValue = (dialog.element.querySelector("[data-type='globalMindmapSetting']") as HTMLTextAreaElement).value;
-      if (globalMindmapSettingValue.trim() === '') {
-        // 允许用户保存空字符串
-        this.data[STORAGE_NAME].globalMindmapSetting = '';
-      } else {
-        try {
-          JSON.parse(globalMindmapSettingValue); // 验证JSON格式
-          this.data[STORAGE_NAME].globalMindmapSetting = globalMindmapSettingValue;
-        } catch (e) {
-          // JSON格式错误时使用默认配置
-          console.warn('Global mindmap setting JSON parse error, using default config');
-          this.data[STORAGE_NAME].globalMindmapSetting = '{}';
-        }
-      }
-      
-      this.saveData(STORAGE_NAME, this.data[STORAGE_NAME]);
-      dialog.destroy();
     });
   }
 
@@ -370,7 +278,6 @@ export default class MindmapPlugin extends Plugin {
     { value: 'dark2', name: '暗色2' },
     { value: 'dark3', name: '暗色3' },
     { value: 'dark4', name: '暗色4' },
-    { value: 'node', name: 'node' },
     { value: 'blackHumour', name: '黑色幽默' },
     { value: 'lateNightOffice', name: '深夜办公室' },
     { value: 'blackGold', name: '黑金' }
@@ -478,181 +385,33 @@ export default class MindmapPlugin extends Plugin {
   ];
 
   private async initSetting() {
+    const defaultSettings = getDefaultSettings();
     await this.loadData(STORAGE_NAME);
     if (!this.data[STORAGE_NAME]) this.data[STORAGE_NAME] = {};
-    if (typeof this.data[STORAGE_NAME].labelDisplay === 'undefined') this.data[STORAGE_NAME].labelDisplay = "showLabelAlways";
-    if (typeof this.data[STORAGE_NAME].embedImageFormat === 'undefined') this.data[STORAGE_NAME].embedImageFormat = "png";
-    if (typeof this.data[STORAGE_NAME].editWindow === 'undefined') this.data[STORAGE_NAME].editWindow = 'dialog';
-    if (typeof this.data[STORAGE_NAME].defaultTheme === 'undefined') this.data[STORAGE_NAME].defaultTheme = 'lemonBubbles';
-    if (typeof this.data[STORAGE_NAME].themeConfig === 'undefined') this.data[STORAGE_NAME].themeConfig = JSON.stringify(this.DEFAULT_THEME_CONFIG, null, 2);
-    if (typeof this.data[STORAGE_NAME].defaultRainbowLines === 'undefined') this.data[STORAGE_NAME].defaultRainbowLines = 'none';
-    if (typeof this.data[STORAGE_NAME].globalMindmapSetting === 'undefined') this.data[STORAGE_NAME].globalMindmapSetting = '{}';
-
-    this.settingItems = [
-      {
-        title: this.i18n.labelDisplay,
-        direction: "column",
-        description: this.i18n.labelDisplayDescription,
-        createActionElement: () => {
-          const options = ["noLabel", "showLabelAlways", "showLabelOnHover"];
-          const optionsHTML = options.map(option => {
-            const isSelected = String(option) === String(this.data[STORAGE_NAME].labelDisplay);
-            return `<option value="${option}"${isSelected ? " selected" : ""}>${this.i18n[option]}</option>`;
-          }).join("");
-          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="labelDisplay">${optionsHTML}</select>`);
-        },
-      },
-      {
-        title: this.i18n.embedImageFormat,
-        direction: "column",
-        description: this.i18n.embedImageFormatDescription,
-        createActionElement: () => {
-          const options = ["svg", "png"];
-          const optionsHTML = options.map(option => {
-            const isSelected = String(option) === String(this.data[STORAGE_NAME].embedImageFormat);
-            return `<option value="${option}"${isSelected ? " selected" : ""}>${option}</option>`;
-          }).join("");
-          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="embedImageFormat">${optionsHTML}</select>`);
-        },
-      },
-      {
-        title: this.i18n.editWindow,
-        direction: "column",
-        description: this.i18n.editWindowDescription,
-        createActionElement: () => {
-          const options = ["dialog", "tab"];
-          const optionsHTML = options.map(option => {
-            const isSelected = String(option) === String(this.data[STORAGE_NAME].editWindow);
-            return `<option value="${option}"${isSelected ? " selected" : ""}>${option}</option>`;
-          }).join("");
-          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="editWindow">${optionsHTML}</select>`);
-        },
-      },
-      {
-        title: this.i18n.defaultTheme,
-        direction: "column",
-        description: this.i18n.defaultThemeDescription,
-        createActionElement: () => {
-          const optionsHTML = this.THEME_LIST.map(theme => {
-            const isSelected = theme.value === this.data[STORAGE_NAME].defaultTheme;
-            return `<option value="${theme.value}"${isSelected ? " selected" : ""}>${theme.name}</option>`;
-          }).join("");
-          return HTMLToElement(`<select class="b3-select fn__flex-center" data-type="defaultTheme">${optionsHTML}</select>`);
-        },
-      },
-      {
-        title: this.i18n.themeConfig,
-        direction: "row",
-        description: this.i18n.themeConfigDescription,
-        createActionElement: () => {
-          const textarea = document.createElement("textarea");
-          textarea.className = "b3-text-field fn__block";
-          textarea.setAttribute("data-type", "themeConfig");
-          textarea.style.height = "200px";
-          textarea.style.fontFamily = "monospace";
-          textarea.style.resize = "vertical";
-          textarea.value = this.data[STORAGE_NAME].themeConfig;
-          return textarea;
-        },
-      },
-      {
-        title: this.i18n.defaultRainbowLines || '默认彩虹线条',
-        direction: "row",
-        description: this.i18n.defaultRainbowLinesDescription || '新建思维导图时默认使用的彩虹线条样式',
-        createActionElement: () => {
-          const container = document.createElement('div');
-          container.className = 'rainbow-lines-selector';
-          container.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%;';
-          
-          this.RAINBOW_LINES_OPTIONS.forEach(option => {
-            const isSelected = option.value === this.data[STORAGE_NAME].defaultRainbowLines;
-            const optionEl = document.createElement('div');
-            optionEl.className = 'rainbow-option' + (isSelected ? ' selected' : '');
-            optionEl.dataset.value = option.value;
-            optionEl.style.cssText = `
-              display: flex;
-              align-items: center;
-              padding: 6px 10px;
-              border-radius: 4px;
-              cursor: pointer;
-              border: 2px solid ${isSelected ? 'var(--b3-theme-primary)' : 'transparent'};
-              background: var(--b3-theme-surface);
-              transition: all 0.2s;
-            `;
-            
-            if (option.list) {
-              // 有颜色列表，显示颜色条
-              const colorsBar = document.createElement('div');
-              colorsBar.className = 'colors-bar';
-              colorsBar.style.cssText = 'display: flex; width: 100%; height: 20px; border-radius: 3px; overflow: hidden;';
-              option.list.forEach(color => {
-                const colorItem = document.createElement('span');
-                colorItem.style.cssText = `flex: 1; background-color: ${color};`;
-                colorsBar.appendChild(colorItem);
-              });
-              optionEl.appendChild(colorsBar);
-            } else {
-              // 无颜色列表，显示文字
-              const textSpan = document.createElement('span');
-              textSpan.textContent = option.name;
-              textSpan.style.cssText = 'color: var(--b3-theme-on-surface);';
-              optionEl.appendChild(textSpan);
-            }
-            
-            optionEl.addEventListener('click', () => {
-              // 移除其他选中状态
-              container.querySelectorAll('.rainbow-option').forEach(el => {
-                (el as HTMLElement).classList.remove('selected');
-                (el as HTMLElement).style.borderColor = 'transparent';
-              });
-              // 设置当前选中
-              optionEl.classList.add('selected');
-              optionEl.style.borderColor = 'var(--b3-theme-primary)';
-              // 更新隐藏的 input 值
-              hiddenInput.value = option.value;
-            });
-            
-            optionEl.addEventListener('mouseenter', () => {
-              if (!optionEl.classList.contains('selected')) {
-                optionEl.style.borderColor = 'var(--b3-theme-primary-light)';
-              }
-            });
-            
-            optionEl.addEventListener('mouseleave', () => {
-              if (!optionEl.classList.contains('selected')) {
-                optionEl.style.borderColor = 'transparent';
-              }
-            });
-            
-            container.appendChild(optionEl);
-          });
-          
-          // 隐藏的 input 用于保存值
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.setAttribute('data-type', 'defaultRainbowLines');
-          hiddenInput.value = this.data[STORAGE_NAME].defaultRainbowLines || 'none';
-          container.appendChild(hiddenInput);
-          
-          return container;
-        },
-      },
-      {
-        title: this.i18n.globalMindmapSetting,
-        direction: "row",
-        description: this.i18n.globalMindmapSettingDescription,
-        createActionElement: () => {
-          const textarea = document.createElement("textarea");
-          textarea.className = "b3-text-field fn__block";
-          textarea.setAttribute("data-type", "globalMindmapSetting");
-          textarea.style.height = "200px";
-          textarea.style.fontFamily = "monospace";
-          textarea.style.resize = "vertical";
-          textarea.value = this.data[STORAGE_NAME].globalMindmapSetting || '{}';
-          return textarea;
-        },
+    
+    // Merge default settings with loaded settings
+    Object.keys(defaultSettings).forEach(key => {
+      if (typeof this.data[STORAGE_NAME][key] === 'undefined') {
+        this.data[STORAGE_NAME][key] = defaultSettings[key];
       }
-    ];
+    });
+  }
+
+  /**
+   * 加载设置
+   */
+  async loadSettings() {
+    const settings = await this.loadData(STORAGE_NAME);
+    const defaultSettings = getDefaultSettings();
+    return { ...defaultSettings, ...settings };
+  }
+
+  /**
+   * 保存设置
+   */
+  async saveSettings(settings: any) {
+    this.data[STORAGE_NAME] = settings;
+    await this.saveData(STORAGE_NAME, settings);
   }
 
   private initMetaInfo() {
