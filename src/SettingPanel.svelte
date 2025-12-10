@@ -225,7 +225,7 @@
                     key: 'defaultLayout',
                     value: settings.defaultLayout,
                     type: 'custom',
-                    title: '默认结构',
+                    title: '默认导图结构',
                     description: '新建思维导图时使用的默认结构',
                     direction: 'row'
                 },
@@ -450,7 +450,7 @@
                         <!-- Custom Theme Dropdown Selector -->
                         <div class="fn__flex b3-label config__item">
                             <div class="fn__flex-1">
-                                <div class="fn__block">{item.title}</div>
+                                <div class="fn__block"><span class="title" style="font-weight: 700;color: var(--b3-theme-primary);">{item.title}</span></div>
                                 {#if item.description}
                                     <div class="b3-label__text">{item.description}</div>
                                 {/if}
@@ -513,7 +513,7 @@
                         <!-- Custom Layout Dropdown Selector -->
                         <div class="fn__flex b3-label config__item">
                             <div class="fn__flex-1">
-                                <div class="fn__block">{item.title}</div>
+                                <div class="fn__block"><span class="title" style="font-weight: 700;color: var(--b3-theme-primary);">{item.title}</span></div>
                                 {#if item.description}
                                     <div class="b3-label__text">{item.description}</div>
                                 {/if}
@@ -576,7 +576,7 @@
                         <!-- Custom Rainbow Lines Dropdown Selector -->
                         <div class="fn__flex b3-label config__item">
                             <div class="fn__flex-1">
-                                <div class="fn__block">{item.title}</div>
+                                <div class="fn__block"><span class="title" style="font-weight: 700;color: var(--b3-theme-primary);">{item.title}</span></div>
                                 {#if item.description}
                                     <div class="b3-label__text">{item.description}</div>
                                 {/if}

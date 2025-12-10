@@ -25,5 +25,6 @@
   "docTreeToMindmap": "Doc Tree to Mindmap",
   "docOutlineToMindmap": "Doc Outline to Mindmap",
   "contentToMindmap": "Content to Mindmap",
+  "docContentToMindmap": "Doc Content to Mindmap",
   "tempMindmapTip": "Temporary preview mode: Editable but won't auto-save, please use export to save your changes"
 }

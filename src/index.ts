@@ -755,6 +755,17 @@ export default class MindmapPlugin extends Plugin {
           this.showDocOutlineMindmap(docId);
         }
       });
+
+      // 文档内容转导图
+      detail.menu.addItem({
+        icon: "iconSimpleMindmap",
+        label: this.i18n.docContentToMindmap || "思绪：文档内容转导图",
+        click: () => {
+          const docId = element.getAttribute('data-node-id');
+          console.log('Show doc content mindmap for docId:', docId);
+          this.showDocContentMindmap(docId);
+        }
+      });
     }
   }
 
@@ -885,6 +896,20 @@ export default class MindmapPlugin extends Plugin {
           const idToUse = docId;
           if (idToUse) {
             this.showDocOutlineMindmap(idToUse);
+          } else {
+            new Dialog({ title: '错误', content: `<div class="b3-dialog__content">无法获取到文档 ID</div>`, width: '360px' });
+          }
+        }
+      });
+
+      // 文档内容转导图
+      menu.addItem({
+        icon: 'iconSimpleMindmap',
+        label: this.i18n.docContentToMindmap || '思绪：文档内容转导图',
+        click: () => {
+          const idToUse = docId;
+          if (idToUse) {
+            this.showDocContentMindmap(idToUse);
           } else {
             new Dialog({ title: '错误', content: `<div class="b3-dialog__content">无法获取到文档 ID</div>`, width: '360px' });
           }
@@ -1151,6 +1176,63 @@ export default class MindmapPlugin extends Plugin {
 
     } catch (error) {
       console.error('生成文档大纲思维导图失败:', error);
+      loadingDialog.destroy();
+      new Dialog({
+        title: "错误",
+        content: `<div class="b3-dialog__content">${error.message || '生成失败'}</div>`,
+        width: "400px",
+      });
+    }
+  }
+
+  // 将文档内容导入为思维导图并展示（单文档内容）
+  // 参数：docId - 文档的 block id
+  private async showDocContentMindmap(docId: string) {
+    const loadingDialog = new Dialog({
+      title: this.i18n.docContentToMindmap || "文档内容转导图",
+      content: `<div class="b3-dialog__content" style="text-align: center; padding: 40px;">
+        <div class="fn__loading"><svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg></div>
+        <div style="margin-top: 16px;">正在生成文档内容思维导图...</div>
+      </div>`,
+      width: "400px",
+    });
+
+    try {
+      if (!docId) throw new Error('无法获取文档 ID');
+
+      const blockRes = await fetchSyncPost('/api/query/sql', {
+        stmt: `SELECT box, path, content, name FROM blocks WHERE id = '${docId}'`
+      });
+
+      if (!blockRes || blockRes.code !== 0 || !blockRes.data || blockRes.data.length === 0) {
+        throw new Error('无法获取文档信息');
+      }
+
+      const blockInfo = blockRes.data[0];
+
+      // 使用 importContent 来生成思维导图数据
+      const mindmapRoot = await importContent(docId, blockInfo, 0, '');
+
+      const plainTitle = (blockInfo.content || blockInfo.name || '文档').replace(/<[^>]+>/g, '').trim();
+
+      const blockSettings = {
+        blockId: docId,
+        importType: 'content',
+        autoNumber: false,
+        maxLevel: 0,
+        autoRefresh: false,
+        isNotebook: false
+      };
+
+      loadingDialog.destroy();
+
+      if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
+        this.openTempMindmapTab(mindmapRoot, plainTitle, blockSettings);
+      } else {
+        this.openTempMindmapDialog(mindmapRoot, blockSettings);
+      }
+    } catch (error) {
+      console.error('生成文档内容思维导图失败:', error);
       loadingDialog.destroy();
       new Dialog({
         title: "错误",
