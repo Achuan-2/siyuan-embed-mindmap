@@ -1,3 +1,10 @@
+## v2.3.0 /20251210
+
+- ✨ 插件设置支持设置导图默认结构 [#58](https://github.com/Achuan-2/siyuan-plugin-simplemindmap/issues/58)
+- 🎨插件设置改为svelte，添加用爱发电Tab [#50](https://github.com/Achuan-2/siyuan-plugin-simplemindmap/issues/50)
+- 🐛默认主题设置失效 [#55](https://github.com/Achuan-2/siyuan-plugin-simplemindmap/issues/55)
+
+
 ## v2.2.0 / 20251208
 
 - ✨添加 「复制该节点为思源图片（可编辑）」，图片会保留思维导图数据，支持在思源再编辑 [#54](https://github.com/Achuan-2/siyuan-plugin-simplemindmap/issues/54)

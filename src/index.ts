@@ -1186,8 +1186,24 @@ export default class MindmapPlugin extends Plugin {
 </div>
     `;
 
+    let dialogTitle = this.i18n.docTreeToMindmap || "子文档转导图";
+    if (blockSettings?.importType) {
+      switch (blockSettings.importType) {
+        case 'outline':
+          dialogTitle = this.i18n.docOutlineToMindmap || "文档大纲转导图";
+          break;
+        case 'content':
+          dialogTitle = this.i18n.contentToMindmap || "笔记内容转导图";
+          break;
+        case 'docTree':
+        default:
+          dialogTitle = this.i18n.docTreeToMindmap || "子文档转导图";
+          break;
+      }
+    }
+
     const dialog = new Dialog({
-      title: this.i18n.docTreeToMindmap || "子文档转导图",
+      title: dialogTitle,
       content: dialogHTML,
       width: this.isMobile ? "92vw" : "90vw",
       height: "80vh",
@@ -1246,7 +1262,7 @@ export default class MindmapPlugin extends Plugin {
                 config: this.data[STORAGE_NAME].themeConfig
               },
               smmVersion: "0.14.0-fix.1",
-              layout: 'logicalStructure',
+              layout: this.data[STORAGE_NAME].defaultLayout || 'logicalStructure',
               config: {},
               view: null
             },
@@ -1291,7 +1307,22 @@ export default class MindmapPlugin extends Plugin {
   }
 
   private openTempMindmapTab(mindmapData: any, rootName?: string, blockSettings?: any) {
-    const title = (rootName || '').replace(/<[^>]*>/g, '') || this.i18n.docTreeToMindmap || "子文档转导图";
+    let defaultTitle = this.i18n.docTreeToMindmap || "子文档转导图";
+    if (blockSettings?.importType) {
+      switch (blockSettings.importType) {
+        case 'outline':
+          defaultTitle = this.i18n.docOutlineToMindmap || "文档大纲转导图";
+          break;
+        case 'content':
+          defaultTitle = this.i18n.contentToMindmap || "笔记内容转导图";
+          break;
+        case 'docTree':
+        default:
+          defaultTitle = this.i18n.docTreeToMindmap || "子文档转导图";
+          break;
+      }
+    }
+    const title = (rootName || '').replace(/<[^>]*>/g, '') || defaultTitle;
     openTab({
       app: this.app,
       custom: {
