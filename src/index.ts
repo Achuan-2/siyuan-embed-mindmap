@@ -1335,13 +1335,31 @@ export default class MindmapPlugin extends Plugin {
             globalMindmapConfig = {};
           }
 
+          // 解析主题配置
+          let themeConfig = {};
+          try {
+            const configStr = this.data[STORAGE_NAME].themeConfig;
+            if (configStr !== undefined && configStr !== null) {
+              if (typeof configStr === 'string' && configStr.trim()) {
+                themeConfig = JSON.parse(configStr);
+              } else if (typeof configStr === 'object') {
+                themeConfig = configStr;
+              }
+            } else {
+              themeConfig = this.DEFAULT_THEME_CONFIG;
+            }
+          } catch (e) {
+            console.warn('Failed to parse theme config, using default');
+            themeConfig = this.DEFAULT_THEME_CONFIG;
+          }
+
           iframe.contentWindow.postMessage(JSON.stringify({
             event: 'init_data',
             mindMapData: {
               root: mindmapData,
               theme: {
                 template: this.data[STORAGE_NAME].defaultTheme || 'lemonBubbles',
-                config: this.data[STORAGE_NAME].themeConfig
+                config: themeConfig
               },
               smmVersion: "0.14.0-fix.1",
               layout: this.data[STORAGE_NAME].defaultLayout || 'logicalStructure',
@@ -1866,13 +1884,31 @@ export default class MindmapPlugin extends Plugin {
                 globalMindmapConfig = {};
               }
 
+              // 解析主题配置
+              let themeConfig = {};
+              try {
+                const configStr = that.data[STORAGE_NAME].themeConfig;
+                if (configStr !== undefined && configStr !== null) {
+                  if (typeof configStr === 'string' && configStr.trim()) {
+                    themeConfig = JSON.parse(configStr);
+                  } else if (typeof configStr === 'object') {
+                    themeConfig = configStr;
+                  }
+                } else {
+                  themeConfig = that.DEFAULT_THEME_CONFIG;
+                }
+              } catch (e) {
+                console.warn('Failed to parse theme config, using default');
+                themeConfig = that.DEFAULT_THEME_CONFIG;
+              }
+
               postMessage({
                 event: 'init_data',
                 mindMapData: {
                   root: mindmapData,
                   theme: {
                     template: that.data[STORAGE_NAME].defaultTheme || 'lemonBubbles',
-                    config: that.data[STORAGE_NAME].themeConfig
+                    config: themeConfig
                   },
                   smmVersion: "0.14.0-fix.1",
                   layout: 'logicalStructure',
