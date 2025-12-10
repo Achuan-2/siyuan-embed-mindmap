@@ -29,10 +29,9 @@ import {
   hasMindMapDataInSVG,
 } from "./utils";
 import { matchHotKey } from "./utils/hotkey";
-import defaultImageContent from "@/default.json";
 import { importOutline, importDocTree, importContent } from "../mind-map/web/src/utils/noteImport";
 import SettingPanel from "./SettingPanel.svelte";
-import { getDefaultSettings, DEFAULT_THEME_CONFIG, THEME_LIST, RAINBOW_LINES_OPTIONS } from "./defaultSettings";
+import { getDefaultSettings, DEFAULT_THEME_CONFIG, RAINBOW_LINES_OPTIONS } from "./defaultSettings";
 
 let PluginInfo = {
   version: '',
