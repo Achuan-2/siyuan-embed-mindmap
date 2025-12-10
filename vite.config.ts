@@ -36,8 +36,8 @@ export default defineConfig({
                 { src: "./preview.png", dest: "./" },
                 { src: "./icon.png", dest: "./" },
                 { src: "./assets/*", dest: "./assets/" },
-                { src: "./mindmap-embed/*", dest: "./mindmap-embed/" },
-                { src: "./i18n/*", dest: "./i18n/" },
+                { src: "./mindmap-embed/**", dest: "./mindmap-embed/" },
+                { src: "./i18n/**", dest: "./i18n/" },
             ],
         }),
 
@@ -85,8 +85,9 @@ export default defineConfig({
                     {
                         name: 'watch-external',
                         async buildStart() {
-                            const files = await fg([
+                                const files = await fg([
                                 './i18n/**',
+                                './mindmap-embed/**',
                                 './README*.md',
                                 './plugin.json'
                             ]);
