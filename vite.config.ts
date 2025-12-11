@@ -36,8 +36,8 @@ export default defineConfig({
                 { src: "./preview.png", dest: "./" },
                 { src: "./icon.png", dest: "./" },
                 { src: "./assets/*", dest: "./assets/" },
-                { src: "./mindmap-embed/**", dest: "./mindmap-embed/" },
-                { src: "./i18n/**", dest: "./i18n/" },
+                { src: "./mindmap-embed/*", dest: "./mindmap-embed/" },
+                { src: "./i18n/*", dest: "./i18n/" },
             ],
         }),
 
