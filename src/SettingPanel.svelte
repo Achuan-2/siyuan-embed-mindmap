@@ -72,6 +72,13 @@
                     direction: 'row'
                 },
                 {
+                    key: 'syncThemeWithSiyuan',
+                    value: settings.syncThemeWithSiyuan,
+                    type: 'checkbox',
+                    title: '跟随思源主题',
+                    description: '根据思源笔记的亮色/暗色主题自动切换思维导图的亮色/暗色模式',
+                },
+                {
                     key: 'defaultLayout',
                     value: settings.defaultLayout,
                     type: 'custom',

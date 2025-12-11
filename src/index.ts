@@ -408,6 +408,26 @@ export default class MindmapPlugin extends Plugin {
 
 
 
+  // 获取初始的 localConfig，根据设置同步 isDark 状态
+  private getInitialLocalConfig(): { isDark?: boolean } | null {
+    const syncThemeWithSiyuan = this.data[STORAGE_NAME].syncThemeWithSiyuan;
+    
+    // 如果未启用跟随思源主题，返回 null（使用默认配置）
+    if (!syncThemeWithSiyuan) {
+      return null;
+    }
+
+    // 获取思源笔记的外观模式：0=亮色，1=暗色
+    const siyuanMode = (window as any).siyuan?.config?.appearance?.mode;
+    
+    // 返回初始的 isDark 配置
+    return {
+      isDark: siyuanMode === 1
+    };
+  }
+
+
+
   public async newMindmapImage(protyle, blockID: string, callback?: (imageInfo: MindmapImageInfo) => void) {
     const format = this.data[STORAGE_NAME].embedImageFormat;
     const defaultRainbowLines = this.data[STORAGE_NAME].defaultRainbowLines || 'none';
@@ -1226,7 +1246,7 @@ export default class MindmapPlugin extends Plugin {
             mindMapData: {
               root: mindmapData,
               theme: {
-                template: this.data[STORAGE_NAME].defaultTheme || 'lemonBubbles',
+                template: this.getThemeBasedOnSiyuanMode(),
                 config: themeConfig
               },
               smmVersion: "0.14.0-fix.1",
@@ -1498,7 +1518,7 @@ export default class MindmapPlugin extends Plugin {
                 mindMapData: mindMapData || that.getDefaultMindMapData(),
                 mindMapConfig: mindMapConfig,
                 lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-                localConfig: null
+                localConfig: that.getInitialLocalConfig()
               });
             } catch (err) {
               postMessage({
@@ -1506,7 +1526,7 @@ export default class MindmapPlugin extends Plugin {
                 mindMapData: that.getDefaultMindMapData(),
                 mindMapConfig: {},
                 lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-                localConfig: null
+                localConfig: that.getInitialLocalConfig()
               });
             }
           } else {
@@ -1515,7 +1535,7 @@ export default class MindmapPlugin extends Plugin {
               mindMapData: that.getDefaultMindMapData(),
               mindMapConfig: {},
               lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-              localConfig: null
+              localConfig: that.getInitialLocalConfig()
             });
           }
         }
@@ -2022,7 +2042,7 @@ export default class MindmapPlugin extends Plugin {
             mindMapData: mindMapData || this.getDefaultMindMapData(),
             mindMapConfig: mindMapConfig,
             lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-            localConfig: null,
+            localConfig: this.getInitialLocalConfig(),
             imageUrl: imageInfo.imageURL
           });
         } catch (err) {
@@ -2031,7 +2051,7 @@ export default class MindmapPlugin extends Plugin {
             mindMapData: this.getDefaultMindMapData(),
             mindMapConfig: {},
             lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-            localConfig: null,
+            localConfig: this.getInitialLocalConfig(),
             imageUrl: imageInfo.imageURL
           });
         }
@@ -2041,7 +2061,7 @@ export default class MindmapPlugin extends Plugin {
           mindMapData: this.getDefaultMindMapData(),
           mindMapConfig: {},
           lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-          localConfig: null,
+          localConfig: this.getInitialLocalConfig(),
           imageUrl: imageInfo.imageURL
         });
       }

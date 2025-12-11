@@ -180,5 +180,6 @@ export const getDefaultSettings = () => ({
   defaultLayout: "logicalStructure",
   themeConfig: JSON.stringify(DEFAULT_THEME_CONFIG, null, 2),
   defaultRainbowLines: "none",
-  globalMindmapSetting: `{"mousewheelAction":"zoom"}`
+  globalMindmapSetting: `{"mousewheelAction":"zoom"}`,
+  syncThemeWithSiyuan: false
 });
