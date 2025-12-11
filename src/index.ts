@@ -27,6 +27,8 @@ import {
   hasMindMapDataInPNG,
   readMindMapDataFromSVG,
   hasMindMapDataInSVG,
+  writeMindMapDataToPNG,
+  writeMindMapDataToSVG,
 } from "./utils";
 import { matchHotKey } from "./utils/hotkey";
 import { importOutline, importDocTree, importContent } from "../mind-map/web/src/utils/noteImport";
@@ -165,9 +167,9 @@ export default class MindmapPlugin extends Plugin {
       callback: (protyle, nodeElement) => {
         this.newMindmapImage(protyle, nodeElement.dataset.nodeId, (imageInfo) => {
           if (!this.isMobile && this.data[STORAGE_NAME].editWindow === 'tab') {
-            this.openEditTab(imageInfo, nodeElement.dataset.nodeId);
+            this.openEditTab(imageInfo, nodeElement.dataset.nodeId, true);
           } else {
-            this.openEditDialog(imageInfo, nodeElement.dataset.nodeId);
+            this.openEditDialog(imageInfo, nodeElement.dataset.nodeId, true);
           }
         });
       },
@@ -322,20 +324,43 @@ export default class MindmapPlugin extends Plugin {
   }
 
   public getPlaceholderImageContent(format: 'svg' | 'png'): string {
+    // 获取默认的思维导图数据
+    const defaultMindMapData = this.getDefaultMindMapData();
+
+    
     if (format === 'png') {
-      // 创建一个简单的透明PNG图片
+      // 创建一个带有灰色背景和文字的PNG图片
       const canvas = document.createElement('canvas');
       canvas.width = 270;
       canvas.height = 183;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'rgba(255, 255, 255, 0)'; // 透明背景
+      
+      // 灰色背景
+      ctx.fillStyle = '#f0f0f0';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/png');
+      
+      // 黑色文字
+      ctx.fillStyle = '#000000';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SimpleMindMap', canvas.width / 2, canvas.height / 2);
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      // 将思维导图数据写入PNG元数据
+      return writeMindMapDataToPNG(dataUrl, defaultMindMapData, {});
     } else {
-      // 创建一个简单的SVG图片
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="270" height="183"><rect width="100%" height="100%" fill="transparent"/></svg>`;
+      // 创建一个带有灰色背景和文字的SVG图片
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="270" height="183">
+        <rect width="100%" height="100%" fill="#f0f0f0"/>
+        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="20" fill="#000000">SimpleMindMap</text>
+      </svg>`;
       const base64 = btoa(unescape(encodeURIComponent(svg)));
-      return `data:image/svg+xml;base64,${base64}`;
+      const dataUrl = `data:image/svg+xml;base64,${base64}`;
+      
+      // 将思维导图数据写入SVG元数据
+      return writeMindMapDataToSVG(dataUrl, defaultMindMapData, {});
     }
   }
 
@@ -477,7 +502,7 @@ export default class MindmapPlugin extends Plugin {
     const attrElement = blockElement.querySelector(".protyle-attr") as HTMLDivElement;
     if (attrElement) {
       const pageCount = (base64ToUnicode(imageInfo.data.split(',').pop()).match(/name(?:=&quot;|%3D%22)/g) || []).length;
-      const labelHTML = `<span>Mind Map${pageCount > 1 ? `:${pageCount}` : ''}</span>`;
+      const labelHTML = `<span>SimpleMindMap</span>`;
       let labelElement = attrElement.querySelector(".label--embed-mindmap") as HTMLDivElement;
       if (labelElement) {
         labelElement.innerHTML = labelHTML;
@@ -1344,6 +1369,9 @@ export default class MindmapPlugin extends Plugin {
         const iframe = this.element.querySelector("iframe");
         iframe.focus();
 
+        // 保存 tab 对象的引用，以便在 onInit 中使用
+        const customTab = this;
+
         const postMessage = (message: any) => {
           if (!iframe.contentWindow) return;
           iframe.contentWindow.postMessage(JSON.stringify(message), '*');
@@ -1411,17 +1439,16 @@ export default class MindmapPlugin extends Plugin {
               }
 
               // 如果有 custom-mindmap-image 属性但没有读取到数据，说明图片可能被替换或损坏
-              if (hasPngAttr && !mindMapData && !hasOldAttr) {
-                // 弹窗提示这不是有效的导图图片
-                fetchSyncPost('/api/notification/pushErrMsg', { msg: '该图片不包含有效的思维导图数据，可能已被替换或损坏', timeout: 5000 });
-                postMessage({
-                  event: 'init_data',
-                  mindMapData: null,
-                  mindMapConfig: {},
-                  lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-                  localConfig: null,
-                  error: 'invalid_mindmap_image'
+              // 编辑模式下不允许打开，避免覆盖原图片（但新建导图时跳过此检查）
+              const isNewMindmap = (imageInfo as any).isNewMindmap || false;
+              if (!isNewMindmap && hasPngAttr && !mindMapData && !hasOldAttr) {
+                console.error('Block has custom-mindmap-image attribute but image contains no valid mindmap data');
+                await fetchSyncPost('/api/notification/pushErrMsg', { 
+                  msg: '该图片不包含有效的思维导图数据，可能已被替换或损坏。请重新创建导图。', 
+                  timeout: 7000 
                 });
+                // 关闭标签页 (setupEditTab 中)
+                customTab.tab.close();
                 return;
               }
 
@@ -1802,8 +1829,10 @@ export default class MindmapPlugin extends Plugin {
     });
   }
 
-  public openEditTab(imageInfo: MindmapImageInfo, blockID?: string) {
+  public openEditTab(imageInfo: MindmapImageInfo, blockID?: string, isNewMindmap: boolean = false) {
     if (blockID) imageInfo.blockID = blockID;
+    // 将 isNewMindmap 标志添加到 imageInfo 中，以便在 init 函数中使用
+    (imageInfo as any).isNewMindmap = isNewMindmap;
     openTab({
       app: this.app,
       custom: {
@@ -1815,7 +1844,7 @@ export default class MindmapPlugin extends Plugin {
     })
   }
 
-  public openEditDialog(imageInfo: MindmapImageInfo, blockID?: string) {
+  public openEditDialog(imageInfo: MindmapImageInfo, blockID?: string, isNewMindmap: boolean = false) {
     const iframeID = unicodeToBase64(`mindmap-edit-dialog-${imageInfo.imageURL}`);
     if (blockID) imageInfo.blockID = blockID;
     const editDialogHTML = `
@@ -1935,18 +1964,15 @@ export default class MindmapPlugin extends Plugin {
           }
 
           // 如果有 custom-mindmap-image 属性但没有读取到数据，说明图片可能被替换或损坏
-          if (hasPngAttr && !mindMapData && !hasOldAttr) {
-            // 弹窗提示这不是有效的导图图片
-            fetchSyncPost('/api/notification/pushErrMsg', { msg: '该图片不包含有效的思维导图数据，可能已被替换或损坏', timeout: 5000 });
-            postMessage({
-              event: 'init_data',
-              mindMapData: null,
-              mindMapConfig: {},
-              lang: window.siyuan.config.lang.split('_')[0] || 'zh',
-              localConfig: null,
-              imageUrl: imageInfo.imageURL,
-              error: 'invalid_mindmap_image'
+          // 编辑模式下不允许打开，避免覆盖原图片（但新建导图时跳过此检查）
+          if (!isNewMindmap && hasPngAttr && !mindMapData && !hasOldAttr) {
+            console.error('Block has custom-mindmap-image attribute but image contains no valid mindmap data');
+            await fetchSyncPost('/api/notification/pushErrMsg', { 
+              msg: '该图片不包含有效的思维导图数据，可能已被替换或损坏。请重新创建导图。', 
+              timeout: 7000 
             });
+            // 关闭对话框 (openEditDialog 中)
+            dialog.destroy();
             return;
           }
 
