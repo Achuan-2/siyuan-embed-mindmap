@@ -179,6 +179,6 @@ export const getDefaultSettings = () => ({
   defaultTheme: "lemonBubbles",
   defaultLayout: "logicalStructure",
   themeConfig: JSON.stringify(DEFAULT_THEME_CONFIG, null, 2),
-  defaultRainbowLines: "colors2",
+  defaultRainbowLines: "none",
   globalMindmapSetting: `{"mousewheelAction":"zoom"}`
 });
